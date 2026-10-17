@@ -20,7 +20,7 @@ Imagine a chatbot for bank staff. A teller asks, "What do the contracts say abou
 
 The risk: the teller isn't cleared to read those contracts, but a normal chatbot might read them out anyway. It might also repeat customer names and IBANs. And if something went wrong, nobody could prove what the chatbot had said.
 
-Bank RAG Guard fixes this in three ways:
+AEGIS-Z fixes this in three ways:
 
 1. **Documents are locked before the AI sees them.** Every document has a clearance level (a *tier*). The search only returns documents at or below the user's level, so a teller's question never reaches the contracts. The AI can't leak what it never received.
 2. **Personal data is hidden.** Names, IBANs, Emirates IDs and phone numbers (English and Arabic) are replaced with tags like `[NAME]` before the AI reads anything, and again in its answer.
@@ -266,7 +266,7 @@ scripts/                Generator for the project briefing PDF
 
 ## Team
 
-`TODO: names and roles`, IEEE Student Branch, Symbiosis International University Dubai.
+`Team Members: Abhinav Deuri, Rachit Harjani, Adhan Ali, Rithika Maheshkumar, Alok Kurien Matthew, Mis-ab Muhammed Unais`
 
 ## Licence
 
