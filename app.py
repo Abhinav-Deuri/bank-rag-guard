@@ -86,7 +86,10 @@ def ask(body: Ask, request: Request):
             row = conn.execute("SELECT tier FROM users WHERE username = %s", (body.username,)).fetchone()
             if row is None:
                 raise HTTPException(400, "Unknown user.")
-            learned_attacks = get_attack_examples(conn)
+            # Learning from past blocks is OFF by default: the guard would also learn from its own mistakes
+            # (a wrongly blocked normal question makes similar questions more likely to be blocked).
+            # Set GUARD_LEARN=1 only after reviewing which blocked questions it would learn from.
+            learned_attacks = get_attack_examples(conn) if os.environ.get("GUARD_LEARN") == "1" else []
             res = guard.guarded_answer(conn, body.username, q, learned_attacks)     # screen -> search -> mask -> model -> mask -> audit
     except HTTPException:
         raise
