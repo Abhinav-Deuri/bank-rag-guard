@@ -7,9 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 /** The backend counts Python code points, so count the same way (not UTF-16 units). */
 export function codePointLength(text: string): number {
-  let n = 0;
-  for (const _ of text) n += 1;
-  return n;
+  return Array.from(text).length;
 }
 
 export function truncateCodePoints(text: string, max: number): string {

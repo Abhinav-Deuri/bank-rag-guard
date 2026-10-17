@@ -43,6 +43,24 @@ const SOURCES_T3 = [
   { id: 1190, source: "cuad/LicenseAgreement_Northgate", tier: 2, score: 0.833, text: "Confidentiality obligations survive expiration or termination. Disclosure is permitted where required by law, provided the disclosing party gives prompt notice to [NAME]." },
 ];
 
+// Fake fingerprints so the audit table has something to link; the real ones come from audit.py.
+const fakeHash = (n) => {
+  let h = 2166136261 ^ n;
+  let out = "";
+  for (let i = 0; i < 8; i++) {
+    h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0;
+    out += h.toString(16).padStart(8, "0");
+  }
+  return out;
+};
+const withChain = (entries) =>
+  entries.map((e) => ({
+    ...e,
+    ts: new Date(Date.UTC(2026, 9, 17, 13, 0, 0) + e.id * 47_000).toISOString(),
+    hash: fakeHash(e.id),
+    prev_hash: fakeHash(e.id - 1),
+  }));
+
 const json = (res, status, body) => {
   res.writeHead(status, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
@@ -78,9 +96,9 @@ createServer(async (req, res) => {
   if (url.pathname === "/api/audit") {
     if (state.audit === "error") return json(res, 500, { detail: "Something went wrong." });
     if (state.audit === "broken") {
-      return json(res, 200, { ok: false, message: "this entry's content does not match its fingerprint (it was edited)", entries: log });
+      return json(res, 200, { ok: false, message: "this entry's content does not match its fingerprint (it was edited)", entries: withChain(log) });
     }
-    return json(res, 200, { ok: true, message: `all ${state.counter} entries verified`, entries: state.audit === "empty" ? [] : log });
+    return json(res, 200, { ok: true, message: `all ${state.counter} entries verified`, entries: state.audit === "empty" ? [] : withChain(log) });
   }
 
   if (url.pathname === "/api/ask" && req.method === "POST") {
@@ -101,9 +119,15 @@ createServer(async (req, res) => {
     if (mode === "html") { res.writeHead(200, { "content-type": "text/html" }); return res.end("<html>oops</html>"); }
     await sleep(mode === "slow" ? 9000 : 1400);
 
+    if (/ignore all previous|real ibans|system prompt/i.test(q)) {
+      state.counter += 1;
+      log.unshift({ id: state.counter, actor: user.username, action: "question_blocked", details: `{"question": ${JSON.stringify(q).slice(0, 90)}, "reason": "asks the assistant to ignore its rules or reveal hidden data"}` });
+      log.length = Math.min(log.length, 12);
+      return json(res, 200, { username: user.username, tier: user.tier, blocked: true, answer: "I can't help with that request. If you need access to restricted information, ask an authorised colleague.", dropped_passages: 0, masked_in_context: {}, masked_in_answer: {}, learned_attacks_count: 0, reason: "asks the assistant to ignore its rules or reveal hidden data", sources: [] });
+    }
     state.counter += 2;
     log.unshift(
-      { id: state.counter, actor: user.username, action: "answer_returned", details: `{"model": "mock", "chunk_ids": [], "question": ${JSON.stringify(q).slice(0, 60)}}` },
+      { id: state.counter, actor: user.username, action: "answer_returned", details: `{"model": "mock", "dropped_passages": 1, "chunk_ids": [811, 90, 4], "chunk_tiers": [1, 1, 1], "masked_in_context": {"NAME": 3, "IBAN": 2}, "masked_in_answer": {}}` },
       { id: state.counter - 1, actor: user.username, action: "question_received", details: `{"role": "${user.role}", "tier": ${user.tier}, "question": ${JSON.stringify(q).slice(0, 90)}}` },
     );
     log.length = Math.min(log.length, 12);
@@ -113,7 +137,8 @@ createServer(async (req, res) => {
     }
     const contracts = /contract|termination|confidential/i.test(q);
     if (contracts && user.tier < 2) {
-      return json(res, 200, { username: user.username, tier: user.tier, blocked: false, answer: "The information is not available at your access level.", dropped_passages: 1, masked_in_context: {}, masked_in_answer: {}, learned_attacks_count: 1, sources: [] });
+      // The backend searches only tier-1 passages for a teller and returns the best ones; none is a contract.
+      return json(res, 200, { username: user.username, tier: user.tier, blocked: false, answer: "The documents provided do not contain information about contract termination or confidentiality.", dropped_passages: 0, masked_in_context: { NAME: 3, IBAN: 2, CARD: 1, PHONE: 1 }, masked_in_answer: {}, learned_attacks_count: 0, sources: SOURCES_T1 });
     }
     if (contracts) {
       return json(res, 200, { username: user.username, tier: user.tier, blocked: false, answer: "The contracts allow either party to terminate with thirty days' written notice. Confidentiality obligations last five years after termination and survive expiry, with a carve-out for disclosures required by law (notice goes to [NAME]).\n\nSources 1 and 2 support this.", dropped_passages: 1, masked_in_context: { NAME: 1 }, masked_in_answer: {}, learned_attacks_count: 1, sources: SOURCES_T3 });

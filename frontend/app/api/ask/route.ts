@@ -1,4 +1,4 @@
-import { errorResponse, forward } from "@/lib/server/proxy";
+import { clientIp, errorResponse, forward } from "@/lib/server/proxy";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,5 +26,6 @@ export async function POST(request: Request) {
   // Forward only the two fields the backend accepts. The 500-character rule is the backend's to enforce.
   return forward("ask", {
     body: JSON.stringify({ username: record.username, question: record.question }),
+    clientIp: clientIp(request),
   });
 }
