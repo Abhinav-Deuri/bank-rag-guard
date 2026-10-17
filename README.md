@@ -1,4 +1,4 @@
-# Bank RAG Guard
+# AEGIS-Z
 
 ### A secure AI assistant for bank staff: it can't leak what you're not cleared to see, and it can prove it.
 
