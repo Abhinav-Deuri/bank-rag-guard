@@ -4,4 +4,3 @@ data/
 *.pem
 __pycache__/
 venv/
-frontend/
