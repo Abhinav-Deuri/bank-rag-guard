@@ -1,7 +1,6 @@
-venv/
-.env
 data/
-__pycache__/
+.env
 .ipynb_checkpoints/
 *.pem
-.env
+__pycache__/
+venv/

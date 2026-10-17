@@ -57,13 +57,18 @@ def ask_model(question, context):
                                {"role": "user", "content": f"Question: {question}\n\nContext:\n{context}"}]})
     return (data["choices"][0]["message"].get("content") or "").strip(), model
 
-def answer(conn, username, question, k=5):
+def answer(conn, username, question, k=5, chunk_filter=None):
     """Run the full chain and return a dictionary with the answer, sources and masking counts."""
     role, tier = get_user(conn, username)
     q_masked, _ = masker.mask_all(question)           # personal data in the question never reaches the model or the log
     audit.append_event(conn, username, "question_received", {"role": role, "tier": tier, "question": q_masked})
 
     chunks = retrieve(conn, q_masked, tier, k)
+    dropped = 0
+    if chunk_filter is not None:                          # drop passages with hidden instructions
+        kept = [ch for ch in chunks if not chunk_filter(ch[3])]
+        dropped = len(chunks) - len(kept)
+        chunks = kept
     sources, parts, in_counts = [], [], Counter()
     for i, (cid, source, doc_id, content, ctier, score) in enumerate(chunks, 1):
         masked, spans = masker.mask_all(content)       # mask BEFORE the model sees it
@@ -76,7 +81,7 @@ def answer(conn, username, question, k=5):
     out_counts = Counter(label for _, _, label in out_spans)
 
     audit.append_event(conn, username, "answer_returned", {
-        "model": model, "chunk_ids": [s["id"] for s in sources], "chunk_tiers": [s["tier"] for s in sources],
+        "model": model, "dropped_passages": dropped, "chunk_ids": [s["id"] for s in sources], "chunk_tiers": [s["tier"] for s in sources],
         "masked_in_context": dict(in_counts), "masked_in_answer": dict(out_counts)})
     return {"user": username, "tier": tier, "question": question, "answer": final, "sources": sources,
             "masked_in_context": dict(in_counts), "masked_in_answer": dict(out_counts)}
