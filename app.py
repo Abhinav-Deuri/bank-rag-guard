@@ -62,16 +62,19 @@ def users():
         rows = conn.execute("SELECT username, role, tier FROM users ORDER BY tier, username").fetchall()
     return [{"username": u, "role": r, "tier": t} for u, r, t in rows]
 
-def get_attack_examples(conn, limit=20):
-    """Retrieve recent blocked attack questions from audit_log to power the self-healing guard."""
-    try:
-        rows = conn.execute(
-            "SELECT details->>'question' FROM audit_log WHERE action = 'question_blocked' ORDER BY id DESC LIMIT %s",
-            (limit,)
-        ).fetchall()
-        return [r[0] for r in rows if r and r[0]]
-    except Exception:
-        return []
+LOOPBACK = {"127.0.0.1", "::1", "localhost"}
+
+def visitor_ip(request: Request) -> str:
+    """The visitor's address for rate limiting.
+
+    Behind the Next.js frontend every request comes from the proxy, so all visitors would share one limit. The
+    proxy passes the visitor's address in X-Client-IP; it is trusted only from this machine, or when the proxy
+    also sends the shared secret in PROXY_SHARED_SECRET, so a visitor cannot pick their own address."""
+    direct = request.client.host if request.client else "unknown"
+    claimed = (request.headers.get("x-client-ip") or "").strip()[:64]
+    secret = os.environ.get("PROXY_SHARED_SECRET", "")
+    trusted = direct in LOOPBACK or (secret and request.headers.get("x-proxy-secret") == secret)
+    return claimed if claimed and trusted else direct
 
 @app.post("/api/ask")
 def ask(body: Ask, request: Request):
@@ -79,17 +82,18 @@ def ask(body: Ask, request: Request):
     q = body.question.strip()
     if not q or len(q) > MAX_Q:
         raise HTTPException(400, f"Question must be 1 to {MAX_Q} characters.")
-    if not allow(request.client.host if request.client else "unknown"):
+    if not allow(visitor_ip(request)):
         raise HTTPException(429, "Too many requests. Please wait a minute and try again.")
     try:
         with db() as conn:
             row = conn.execute("SELECT tier FROM users WHERE username = %s", (body.username,)).fetchone()
             if row is None:
                 raise HTTPException(400, "Unknown user.")
-            # Learning from past blocks is OFF by default: the guard would also learn from its own mistakes
-            # (a wrongly blocked normal question makes similar questions more likely to be blocked).
-            # Set GUARD_LEARN=1 only after reviewing which blocked questions it would learn from.
-            learned_attacks = get_attack_examples(conn) if os.environ.get("GUARD_LEARN") == "1" else []
+            # Self-healing: attacks that got past the guard in red-team runs (eval/red_team.py) are stored in
+            # guard_examples and shown to the guard as examples. Only confirmed successes are stored, never
+            # questions the guard blocked on its own, so a wrong block cannot teach it to block more.
+            # Set GUARD_LEARN=0 to run the plain guard.
+            learned_attacks = guard.learned_examples(conn) if os.environ.get("GUARD_LEARN", "1") != "0" else []
             res = guard.guarded_answer(conn, body.username, q, learned_attacks)     # screen -> search -> mask -> model -> mask -> audit
     except HTTPException:
         raise
@@ -104,6 +108,7 @@ def ask(body: Ask, request: Request):
             "masked_in_context": res.get("masked_in_context", {}),
             "masked_in_answer": res.get("masked_in_answer", {}),
             "learned_attacks_count": len(learned_attacks),
+            "reason": res.get("reason") if res.get("blocked") else None,
             "sources": [{"id": s["id"], "source": s["source"], "tier": s["tier"], "score": s["score"], "text": s["text"][:300]}
                         for s in res.get("sources", [])]}
 
@@ -112,9 +117,12 @@ def audit_view():
     """Verify the hash chain and return the latest entries."""
     with db() as conn:
         ok, bad_id, message = audit.verify_chain(conn)
-        rows = conn.execute("SELECT id, actor, action, details FROM audit_log ORDER BY id DESC LIMIT 12").fetchall()
+        rows = conn.execute("SELECT id, actor, action, details, ts, prev_hash, hash FROM audit_log ORDER BY id DESC LIMIT 12").fetchall()
+    # Fingerprints are not secret: they let a reviewer see each entry link to the one before it.
     return {"ok": ok, "message": message,
-            "entries": [{"id": i, "actor": a, "action": act, "details": json.dumps(d, ensure_ascii=False)[:500]} for i, a, act, d in rows]}
+            "entries": [{"id": i, "actor": a, "action": act, "details": json.dumps(d, ensure_ascii=False)[:500],
+                         "ts": t.isoformat() if t else None, "prev_hash": p, "hash": h}
+                        for i, a, act, d, t, p, h in rows]}
 
 @app.get("/health")
 def health():

@@ -37,6 +37,31 @@ def _luhn_ok(text):
         total += n
     return bool(numbers) and total % 10 == 0
 
+def _iban_ok(text):
+    """True if text is a valid IBAN by the ISO 13616 mod-97 check (separators and case ignored)."""
+    s = "".join(c for c in text if c.isalnum()).upper()
+    if not (15 <= len(s) <= 34) or not s[:2].isalpha() or not s[2:4].isdigit():
+        return False
+    moved = s[4:] + s[:4]                                  # move country code and check digits to the end
+    digits = "".join(str(int(c, 36)) for c in moved)       # A=10, B=11, ... Z=35
+    return int(digits) % 97 == 1
+
+def _iban_prefix(text):
+    """For loosely written IBANs: the length of the longest leading run of separator-delimited groups that is a
+    valid IBAN, or 0. A case-insensitive pattern can run on into the next words ("ae07 0331 ... on file"), so
+    whole trailing groups are dropped until the mod-97 check passes."""
+    parts = re.split(r"([ \-.])", text)                     # keep the separators so lengths stay exact
+    for n in range(len(parts), 0, -1):
+        candidate = "".join(parts[:n]).rstrip(" -.")
+        if candidate and _iban_ok(candidate):
+            return len(candidate)
+    return 0
+
+def _emirates_id_ok(text):
+    """True if a 15-digit Emirates ID passes its Luhn check digit."""
+    d = "".join(c for c in text if c.isdigit())
+    return len(d) == 15 and d.startswith("784") and _luhn_ok(d)
+
 def _brand_ok(text):
     """True if the digits start like a real card brand and have a length that brand uses."""
     d = "".join(c for c in text if c.isdigit())
@@ -70,6 +95,9 @@ _CARD_ALT = r"credit card|debit card|card|visa|mastercard|master card|maestro|am
 PATTERNS = [
     # Emirates ID: 784-YYYY-XXXXXXX-Z (hyphens or spaces optional)
     ("EMIRATES_ID", re.compile(r"(?<!\d)784[ \-]?\d{4}[ \-]?\d{7}[ \-]?\d(?!\d)"), 0, None),
+    # Emirates ID in any other layout (dots, slashes, odd grouping): accepted only if the Luhn check digit is valid,
+    # so a loose pattern does not turn random 15-digit numbers into false alarms
+    ("EMIRATES_ID", re.compile(r"(?<!\d)784(?:[ \-./]?\d){12}(?!\d)"), 0, _emirates_id_ok),
 
     # IBAN, any country: 2 capital letters + 2 digits, then either a compact run of 11-30
     # letters/digits, or 3-7 groups of 4 separated by single spaces (plus an optional short last group).
@@ -77,6 +105,9 @@ PATTERNS = [
         r"(?<![A-Za-z0-9])[A-Z]{2}\d{2}"
         r"(?:[A-Z0-9]{11,30}|(?: [A-Z0-9]{4}){3,7}(?: [A-Z0-9]{1,3})?)"
         r"(?![A-Za-z0-9])"), 0, lambda t: _digit_count(t) >= 8),
+    # IBAN in any case or with hyphens / dots / irregular spacing ("ae07-0331-2345 ..."): accepted only when the
+    # mod-97 check passes, so the looser pattern does not mask ordinary codes
+    ("IBAN", re.compile(r"(?i)(?<![A-Za-z0-9])[A-Z]{2}\d{2}(?:[ \-.]?[A-Z0-9]){11,30}(?![A-Za-z0-9])"), 0, _iban_prefix),
 
     # Payment card, way 1: real brand prefix and length, and a valid Luhn checksum
     ("CREDIT_CARD", re.compile(r"(?<!\d)\d(?:[ \-]?\d){12,18}(?!\d)"), 0,
@@ -183,8 +214,12 @@ def find_pii(text):
             s, e = m.span(group)
             if s < 0:                            # the group did not take part in this match
                 continue
-            if check and not check(norm[s:e]):   # the pattern matched but failed its extra check
-                continue
+            if check:
+                verdict = check(norm[s:e])
+                if not verdict:                  # the pattern matched but failed its extra check
+                    continue
+                if verdict is not True:          # a number: keep only that many characters of the match
+                    e = s + verdict
             if any(s < ce and e > cs for cs, ce in claimed):    # overlaps an earlier finding: skip
                 continue
             claimed.append((s, e))

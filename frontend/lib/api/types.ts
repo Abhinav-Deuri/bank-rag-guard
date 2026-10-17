@@ -30,6 +30,8 @@ export interface AskResponse {
   masked_in_context: Record<string, number>;
   masked_in_answer?: Record<string, number>;
   learned_attacks_count?: number;
+  /** The input guard's short explanation, when the question was blocked. */
+  reason?: string | null;
   sources: SourceChunk[];
 }
 
@@ -39,6 +41,11 @@ export interface AuditEntry {
   action: string;
   /** Possibly truncated string. Not guaranteed to be valid JSON. */
   details: string;
+  /** ISO timestamp, when the backend sends it. */
+  ts?: string;
+  /** This entry's SHA-256 fingerprint and the previous entry's, when the backend sends them. */
+  hash?: string;
+  prevHash?: string;
 }
 
 export interface AuditResponse {

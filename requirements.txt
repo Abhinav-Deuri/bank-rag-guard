@@ -1,6 +1,19 @@
+# --- Backend (app.py, src/) ---
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 psycopg[binary]>=3.1.18
 requests>=2.31.0
 pydantic>=2.6.0
 faker>=24.0.0
+
+# --- Notebooks (01-08) ---
+python-dotenv>=1.0.0
+pandas>=2.0.0
+numpy>=1.26.0
+pgvector>=0.2.5
+matplotlib>=3.8.0
+jupyterlab>=4.0.0
+
+# --- Tests (tests/, needs PostgreSQL with pgvector; no API keys) ---
+pytest>=8.0.0
+httpx>=0.27.0

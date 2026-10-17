@@ -1,107 +1,123 @@
 """
-Benchmark and Evaluation Suite for Notebook 04b Name Masker (src/person_names.py).
+Measure the masker (src/masker.py) on the project's data. Every number is computed when you run this file;
+nothing is typed in by hand.
 
-Computes Precision, Recall, and F1-Scores across:
-1. Synthetic UAE Customer Notes (Arabic & English, 300 notes)
-2. ai4privacy Benchmark Development Slice (1,000 English examples)
-3. ai4privacy Benchmark Fresh Unseen Slice (1,000 English examples)
+Test sets (created by notebooks 02 and 04b, stored in data/, which is not in git):
+  data/customers.csv               synthetic customer notes with the true name, Emirates ID, IBAN and phone
+  data/pii_benchmark.jsonl         ai4privacy/pii-masking-200k development slice (used while writing the rules)
+  data/pii_benchmark_fresh.jsonl   ai4privacy slice the rules were never tuned on (the honest number)
 
-Exports results to eval/name_benchmark_scores.csv.
+    python eval/benchmark_name_masker.py
+
+Writes eval/name_benchmark_scores.csv.
 """
+from __future__ import annotations
 
+import csv
+import json
 import os
 import sys
-import csv
 
-# Add src to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+DATA = os.path.join(ROOT, "data")
+sys.path.insert(0, os.path.join(ROOT, "src"))
 
-BENCHMARK_RESULTS = [
-    {
-        "Dataset": "Customer Notes (Arabic)",
-        "Language": "ar",
-        "Test_Size": "152 notes",
-        "Target": "Customer Full Names",
-        "Labelled_Tokens": 760,
-        "Findings": 758,
-        "Recall": 0.998,
-        "Precision_Name": 0.989,
-        "Precision_Any_PII": 1.000,
-        "F1_Score": 0.993,
-        "Notes_Fully_Masked": 0.987,
-        "Evaluation_Type": "Synthetic Ground Truth (Optimistic)"
-    },
-    {
-        "Dataset": "Customer Notes (English)",
-        "Language": "en",
-        "Test_Size": "148 notes",
-        "Target": "Customer Full Names",
-        "Labelled_Tokens": 444,
-        "Findings": 443,
-        "Recall": 0.997,
-        "Precision_Name": 0.991,
-        "Precision_Any_PII": 1.000,
-        "F1_Score": 0.994,
-        "Notes_Fully_Masked": 0.993,
-        "Evaluation_Type": "Synthetic Ground Truth (Optimistic)"
-    },
-    {
-        "Dataset": "ai4privacy Benchmark (Dev Slice)",
-        "Language": "en",
-        "Test_Size": "1,000 examples",
-        "Target": "FIRSTNAME / LASTNAME / MIDDLENAME",
-        "Labelled_Tokens": 462,
-        "Findings": 365,
-        "Recall": 0.684,
-        "Precision_Name": 0.778,
-        "Precision_Any_PII": 1.000,
-        "F1_Score": 0.728,
-        "Notes_Fully_Masked": None,
-        "Evaluation_Type": "Standard Benchmark (ai4privacy/pii-masking-200k)"
-    },
-    {
-        "Dataset": "ai4privacy Benchmark (Fresh Unseen)",
-        "Language": "en",
-        "Test_Size": "1,000 examples",
-        "Target": "FIRSTNAME / LASTNAME / MIDDLENAME",
-        "Labelled_Tokens": 485,
-        "Findings": 348,
-        "Recall": 0.670,
-        "Precision_Name": 0.802,
-        "Precision_Any_PII": 0.986,
-        "F1_Score": 0.730,
-        "Notes_Fully_Masked": None,
-        "Evaluation_Type": "Honest Unseen Test Slice (Offset 5000+)"
+import masker  # noqa: E402
+import pii  # noqa: E402
+
+NAME_GOLD = {"FIRSTNAME", "LASTNAME", "MIDDLENAME"}
+
+
+def overlap(a0: int, a1: int, b0: int, b1: int) -> int:
+    return max(0, min(a1, b1) - max(a0, b0))
+
+
+def score_customers(path: str) -> list[dict]:
+    """Per language and per identifier: was each true value fully hidden in the masked note?"""
+    rows = list(csv.DictReader(open(path, encoding="utf-8")))
+    out = []
+    for lang in ("en", "ar"):
+        notes = [r for r in rows if r["language"] == lang]
+        if not notes:
+            continue
+        for field, label in (("name", "NAME"), ("emirates_id", "EMIRATES_ID"), ("iban", "IBAN"), ("phone", "PHONE")):
+            caught = 0
+            for r in notes:
+                text = r["text"]
+                value = r[field]
+                # Notebook 02 rewrites some Arabic notes with Arabic-Indic digits, so look for either form.
+                start = text.find(value)
+                if start < 0:
+                    start = pii.normalize(text).find(value)
+                if start < 0:
+                    continue
+                end = start + len(value)
+                spans = masker.find_all(text)
+                covered = sum(overlap(s, e, start, end) for s, e, _ in spans)
+                caught += covered >= len(value) - 1          # allow one stray character (punctuation)
+            out.append({"test_set": f"customer notes ({lang})", "kind": "synthetic, same generator as the rules",
+                        "target": label, "labelled": len(notes), "recall": round(caught / len(notes), 3),
+                        "findings": "", "precision_same_label": "", "precision_any_label": ""})
+    return out
+
+
+def score_benchmark(path: str, name: str, kind: str) -> dict:
+    """Recall and precision of the NAME tag against ai4privacy's first / middle / last name labels."""
+    gold_n = caught = pred_n = same = anyl = 0
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            row = json.loads(line)
+            text = row["source_text"]
+            mask = row["privacy_mask"]
+            all_gold = json.loads(mask) if isinstance(mask, str) else mask
+            gold = [g for g in all_gold if g["label"] in NAME_GOLD]
+            preds = [p for p in masker.find_all(text) if p[2] == "NAME"]
+            for g in gold:
+                gold_n += 1
+                half = 0.5 * (g["end"] - g["start"])
+                caught += any(overlap(p[0], p[1], g["start"], g["end"]) >= half for p in preds)
+            for s, e, _ in preds:
+                pred_n += 1
+                same += any(overlap(s, e, g["start"], g["end"]) > 0 for g in gold)
+                anyl += any(overlap(s, e, g["start"], g["end"]) > 0 for g in all_gold)
+    return {"test_set": name, "kind": kind, "target": "NAME", "labelled": gold_n,
+            "recall": round(caught / max(gold_n, 1), 3), "findings": pred_n,
+            "precision_same_label": round(same / max(pred_n, 1), 3),
+            "precision_any_label": round(anyl / max(pred_n, 1), 3)}
+
+
+def main() -> None:
+    results: list[dict] = []
+    files = {
+        "customers": os.path.join(DATA, "customers.csv"),
+        "dev": os.path.join(DATA, "pii_benchmark.jsonl"),
+        "fresh": os.path.join(DATA, "pii_benchmark_fresh.jsonl"),
     }
-]
+    if os.path.exists(files["customers"]):
+        results += score_customers(files["customers"])
+    if os.path.exists(files["dev"]):
+        results.append(score_benchmark(files["dev"], "ai4privacy development slice", "rules were tuned on this"))
+    if os.path.exists(files["fresh"]):
+        results.append(score_benchmark(files["fresh"], "ai4privacy fresh slice", "never used while writing rules"))
+    missing = [p for p in files.values() if not os.path.exists(p)]
+    if missing:
+        print("Skipped (file not found, run notebooks 02 and 04b first):", *missing, sep="\n  ")
+    if not results:
+        sys.exit("No test data found.")
 
-def export_benchmark_csv(output_path: str) -> None:
-    """Export benchmark summary table to CSV."""
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    fieldnames = [
-        "Dataset", "Language", "Test_Size", "Target", "Labelled_Tokens",
-        "Findings", "Recall", "Precision_Name", "Precision_Any_PII",
-        "F1_Score", "Notes_Fully_Masked", "Evaluation_Type"
-    ]
-    with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        for row in BENCHMARK_RESULTS:
-            writer.writerow(row)
-    print(f"Exported benchmark metrics to {output_path}")
+    out = os.path.join(HERE, "name_benchmark_scores.csv")
+    with open(out, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(results[0].keys()))
+        w.writeheader()
+        w.writerows(results)
 
-def print_summary_table():
-    print("=" * 88)
-    print(f"{'Dataset / Test Set':<36} | {'Recall':<8} | {'Precision':<9} | {'F1-Score':<8} | {'Type'}")
-    print("-" * 88)
-    for r in BENCHMARK_RESULTS:
-        rec = f"{r['Recall'] * 100:.1f}%"
-        prec = f"{r['Precision_Name'] * 100:.1f}%"
-        f1 = f"{r['F1_Score'] * 100:.1f}%"
-        print(f"{r['Dataset']:<36} | {rec:<8} | {prec:<9} | {f1:<8} | {r['Evaluation_Type']}")
-    print("=" * 88)
+    print(f"{'Test set':<34} {'Target':<12} {'Labelled':>8} {'Recall':>8} {'Precision':>10}")
+    for r in results:
+        prec = f"{r['precision_same_label']:.1%}" if r["precision_same_label"] != "" else "–"
+        print(f"{r['test_set']:<34} {r['target']:<12} {r['labelled']:>8} {r['recall']:>8.1%} {prec:>10}")
+    print(f"\nSaved {out}")
+
 
 if __name__ == "__main__":
-    out_csv = os.path.abspath(os.path.join(os.path.dirname(__file__), "name_benchmark_scores.csv"))
-    export_benchmark_csv(out_csv)
-    print_summary_table()
+    main()

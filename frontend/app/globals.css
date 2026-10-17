@@ -66,6 +66,10 @@
     rgb(255 255 255 / 0.26) 100%
   );
   --glass-solid: rgb(14 22 40 / 0.94);
+
+  /* Workspace: redaction bars are inverted ink so removed text reads as a solid bar */
+  --redact: #d9e2ec;
+  --redact-ink: #0b1422;
 }
 
 /*
@@ -130,6 +134,9 @@
     rgb(30 41 70 / 0.2) 100%
   );
   --glass-solid: rgb(252 253 255 / 0.96);
+
+  --redact: #0c1626;
+  --redact-ink: #c9d3df;
 }
 
 /* Theme switch crossfades instead of snapping (View Transitions, where supported). */
@@ -158,9 +165,13 @@
   --color-lime-ink: var(--lime-ink);
   --color-frame: var(--frame);
   --color-dash-page: var(--dash-page);
+  --color-redact: var(--redact);
+  --color-redact-ink: var(--redact-ink);
 
   --font-sans: "Readex Pro Variable", ui-sans-serif, system-ui, "Segoe UI",
     "Noto Sans Arabic", Tahoma, sans-serif;
+  --font-doc: "Source Serif 4 Variable", "Readex Pro Variable", Georgia, serif;
+  --font-ledger: "IBM Plex Mono", ui-monospace, Consolas, monospace;
   --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, "Liberation Mono", monospace;
 
   --radius-sm: 0.375rem;
@@ -313,20 +324,27 @@
 }
 
 /*
-  Workspace palette: unified with the landing page's enterprise navy and electric blue palette.
+  Workspace redaction bar. Removed personal data is shown the way document-review tools show
+  redactions: a solid bar, roughly as long as the kind of value it replaced, with a reason label.
+  The width is set per label in components/bank-rag/console/redacted.tsx.
 */
-.dash-scope {
-  /* Inherits global --accent, --fg, and panel design tokens directly */
-}
-
-/* Dashboard card. In the components layer so utilities (padding, bg, border) can still override it. */
-@layer components {
-  .dash-card {
-    border-radius: 1.25rem;
-    background: var(--ink-900);
-    border: 1px solid var(--line-soft);
-    box-shadow: var(--card-shadow);
-  }
+.redact-bar {
+  display: inline-block;
+  box-sizing: border-box;
+  padding: 0 0.3rem;
+  margin-inline: 0.06em;
+  border-radius: 1px;
+  background: var(--redact);
+  color: var(--redact-ink);
+  font-family: var(--font-ledger);
+  font-size: 0.66rem;
+  font-weight: 500;
+  line-height: 1.1rem;
+  vertical-align: 0.08em;
+  white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
 }
 
 /* Masked-value tags such as [NAME] or [IBAN]; the underlying text is not changed */

@@ -82,6 +82,7 @@ function parseAsk(value: unknown): AskResponse {
     masked_in_context: counts,
     masked_in_answer: answerCounts,
     learned_attacks_count: learned,
+    reason: typeof value.reason === "string" ? value.reason : null,
     sources,
   };
 }
@@ -97,6 +98,9 @@ function parseAudit(value: unknown): AuditResponse {
       actor: typeof e.actor === "string" ? e.actor : String(e.actor ?? ""),
       action: typeof e.action === "string" ? e.action : String(e.action ?? ""),
       details: typeof e.details === "string" ? e.details : JSON.stringify(e.details ?? ""),
+      ts: typeof e.ts === "string" ? e.ts : undefined,
+      hash: typeof e.hash === "string" ? e.hash : undefined,
+      prevHash: typeof e.prev_hash === "string" ? e.prev_hash : undefined,
     };
   });
   return { ok: value.ok, message: value.message, entries };

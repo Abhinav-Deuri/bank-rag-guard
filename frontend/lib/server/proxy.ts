@@ -64,7 +64,17 @@ function genericDetail(status: number): string {
   return "The backend returned an unexpected response.";
 }
 
-export async function forward(key: RouteKey, init?: { body?: string }): Promise<NextResponse> {
+/**
+ * The visitor's address, from the platform's forwarding headers (Vercel and most hosts set them). Sent to the
+ * backend so its rate limit applies per visitor instead of to everyone behind this proxy.
+ */
+export function clientIp(request: Request): string | null {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = forwarded || request.headers.get("x-real-ip")?.trim();
+  return ip && ip.length <= 64 ? ip : null;
+}
+
+export async function forward(key: RouteKey, init?: { body?: string; clientIp?: string | null }): Promise<NextResponse> {
   const route = ROUTES[key];
   const base = backendBase();
   if (!base) {
@@ -80,6 +90,9 @@ export async function forward(key: RouteKey, init?: { body?: string }): Promise<
       headers: {
         accept: "application/json",
         ...(init?.body ? { "content-type": "application/json" } : {}),
+        ...(init?.clientIp ? { "x-client-ip": init.clientIp } : {}),
+        // Lets a backend on another machine trust x-client-ip. Same value as the backend's PROXY_SHARED_SECRET.
+        ...(process.env.PROXY_SHARED_SECRET ? { "x-proxy-secret": process.env.PROXY_SHARED_SECRET } : {}),
       },
       body: init?.body,
       cache: "no-store",
