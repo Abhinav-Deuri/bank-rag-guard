@@ -182,7 +182,7 @@ We would rather you hear these from us.
 
 ## Team
 
-`TODO: names, roles, university` (IEEE Student Branch, Symbiosis International University Dubai).
+`Group Members: Abhinav Deuri, Alok Kurien Matthew, Rachit Harjani, Rithika Maheshkumar, Mis-ab Muhammed Unais, Adhnan Ali`.
 
 ## Licence
 
