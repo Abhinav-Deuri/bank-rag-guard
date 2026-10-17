@@ -36,7 +36,7 @@ export function SecuritySummary({ response }: { response: AskResponse }) {
         </p>
       </Cell>
 
-      <Cell label="Input guard & self-healing memory">
+      <Cell label="Input guard">
         {response.blocked ? (
           <p className="flex items-center gap-2 font-medium text-bad">
             <Ban className="size-4 shrink-0" aria-hidden />
@@ -50,8 +50,8 @@ export function SecuritySummary({ response }: { response: AskResponse }) {
         )}
         <p className="text-xs leading-relaxed text-faint">
           {learned > 0
-            ? `Self-healing guard active (${learned} blocked attack pattern${learned === 1 ? "" : "s"} in memory).`
-            : "Self-healing guard active (learns from blocked attacks in audit_log)."}
+            ? `Input guard active (${learned} learned attack example${learned === 1 ? "" : "s"} loaded).`
+            : "Input guard active (no learned examples loaded)."}
         </p>
       </Cell>
 
