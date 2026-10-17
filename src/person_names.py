@@ -39,7 +39,11 @@ FALLBACK_LAST_EN = {
     "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
     "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
     "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores",
-    "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera", "Campbell", "Mitchell", "Carter", "Roberts"
+    "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera", "Campbell", "Mitchell", "Carter", "Roberts",
+    "Al-Mansoor", "Mansoor", "Al-Nuaimi", "Nuaimi", "Al-Falasi", "Falasi", "Al-Shamsi", "Shamsi",
+    "Al-Maktoum", "Maktoum", "Al-Nahyan", "Nahyan", "Al-Qasimi", "Qasimi", "Al-Suwaidi", "Suwaidi",
+    "Al-Marzouqi", "Marzouqi", "Al-Zaabi", "Zaabi", "Al-Mazrouei", "Mazrouei", "Al-Muhairi", "Muhairi",
+    "Hassan", "Al-Hassan", "Al-Ali", "Hussein", "Al-Hussein"
 }
 FALLBACK_FIRST_AR = {
     "محمد", "أحمد", "احمد", "علي", "فاطمة", "مريم", "سارة", "عمر", "خالد", "عبدالله", "يوسف",
@@ -142,6 +146,9 @@ RULES = [
     ("cue", re.compile(rf"(?:\A|(?<=\n))({CAP})(?=,[ ](?i:our|your|the|we|i|please|this|here|my|it)\b|[ ](?:could|can|would|will|please)\b)"), NOT_NAMES),
     ("pair", re.compile(rf"(?<![A-Za-z])({CAP})[ ]({CAP})(?![A-Za-z])"), (FIRST_EN, LAST_EN, False)),
     ("pair", re.compile(rf"(?<![{AR}])({AR_WORD})[ ]({AR_WORD})(?![{AR}])"), (FIRST_AR_NORM, LAST_AR_NORM, True)),
+    # Corporate directory layout: "Smith, John" or "المنصور، أحمد"
+    ("pair_comma", re.compile(rf"(?<![A-Za-z])({CAP}),[ ]+({CAP})(?![A-Za-z])"), (LAST_EN, FIRST_EN, False)),
+    ("pair_comma", re.compile(rf"(?<![{AR}])({AR_WORD})[ ]*،[ ]*({AR_WORD})(?![{AR}])"), (LAST_AR_NORM, FIRST_AR_NORM, True)),
     # first name after a context word, e.g. "reminder for Stephen", "Connect with Harvey"
     ("first", re.compile(rf"(?<![A-Za-z])(?i:{FIRST_CTX})[ ]+({CAP})(?:[ ]({CAP}))?(?![A-Za-z])"), (FIRST_EN, LAST_EN)),
     # first name at the start of a sentence followed by a comma or a request word, e.g. "Kattie could you ..."
@@ -171,7 +178,7 @@ def find_names(text):
                 if trimmed is None:
                     continue
                 s, e = trimmed
-            elif kind == "pair":                     # both words must be in the name lists
+            elif kind in ("pair", "pair_comma"):     # both words must be in the name lists
                 first, last, is_ar = extra
                 w1 = normalize_ar(m.group(1)) if is_ar else m.group(1)
                 w2 = normalize_ar(m.group(2)) if is_ar else m.group(2)

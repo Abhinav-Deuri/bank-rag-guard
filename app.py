@@ -59,6 +59,17 @@ def users():
         rows = conn.execute("SELECT username, role, tier FROM users ORDER BY tier, username").fetchall()
     return [{"username": u, "role": r, "tier": t} for u, r, t in rows]
 
+def get_attack_examples(conn, limit=20):
+    """Retrieve recent blocked attack questions from audit_log to power the self-healing guard."""
+    try:
+        rows = conn.execute(
+            "SELECT details->>'question' FROM audit_log WHERE action = 'question_blocked' ORDER BY id DESC LIMIT %s",
+            (limit,)
+        ).fetchall()
+        return [r[0] for r in rows if r and r[0]]
+    except Exception:
+        return []
+
 @app.post("/api/ask")
 def ask(body: Ask, request: Request):
     """Run the guarded pipeline for the chosen user and return the answer with its sources."""
@@ -72,7 +83,8 @@ def ask(body: Ask, request: Request):
             row = conn.execute("SELECT tier FROM users WHERE username = %s", (body.username,)).fetchone()
             if row is None:
                 raise HTTPException(400, "Unknown user.")
-            res = guard.guarded_answer(conn, body.username, q, [])     # screen -> search -> mask -> model -> mask -> audit
+            learned_attacks = get_attack_examples(conn)
+            res = guard.guarded_answer(conn, body.username, q, learned_attacks)     # screen -> search -> mask -> model -> mask -> audit
     except HTTPException:
         raise
     except Exception:
