@@ -4,6 +4,7 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
+import { ProximityGlow } from "@/components/bank-rag/landing/proximity-glow";
 import { StepVisual } from "@/components/bank-rag/landing/step-visuals";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
@@ -121,17 +122,33 @@ export function HowItWorks() {
 
           <div
             aria-hidden
-            className="relative hidden min-h-[22rem] rounded-xl border border-line-soft bg-panel p-6 lg:block motion-reduce:lg:hidden"
+            className="hidden lg:block motion-reduce:lg:hidden"
           >
-            {STEPS.map((step, i) => (
-              <div
-                key={step.title}
-                data-panel
-                className={i === 0 ? "" : "invisible absolute inset-6 opacity-0"}
-              >
-                <StepVisual index={i} />
+            <ProximityGlow
+              range={80}
+              className="min-h-[22rem] border-line-soft!"
+              edgeSensitivity={30}
+              glowColor="215 85 72"
+              backgroundColor="var(--ink-900)"
+              borderRadius={20}
+              glowRadius={56}
+              glowIntensity={1.0}
+              coneSpread={25}
+              animated={false}
+              colors={["#1e3fd8", "#38bdf8", "#a5d8ff"]}
+            >
+              <div className="relative min-h-[22rem] w-full flex-1 p-6">
+                {STEPS.map((step, i) => (
+                  <div
+                    key={step.title}
+                    data-panel
+                    className={i === 0 ? "" : "invisible absolute inset-6 opacity-0"}
+                  >
+                    <StepVisual index={i} />
+                  </div>
+                ))}
               </div>
-            ))}
+            </ProximityGlow>
           </div>
         </div>
       </div>

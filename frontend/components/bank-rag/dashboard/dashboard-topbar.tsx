@@ -9,7 +9,6 @@ import { SECTIONS, TAB_IDS, type SectionId } from "@/components/bank-rag/dashboa
 import { ConnectionStatus } from "@/components/bank-rag/connection-status";
 import { useTheme } from "@/components/bank-rag/theme-provider";
 import { ThemeToggle } from "@/components/bank-rag/theme-toggle";
-import GooeyNav from "@/components/ui/gooey-nav";
 import type { HealthState } from "@/hooks/use-health";
 import { cn } from "@/lib/utils";
 
@@ -18,8 +17,7 @@ import { cn } from "@/lib/utils";
  * stays on screen wherever the page is scrolled. Its measured height is published as
  * `--dash-bar-h` so the page can leave room for it.
  *
- * The tabs use the same GooeyNav (React Bits) and settings as the landing page. On phones, where
- * GooeyNav would wrap instead of scrolling, a plain scrolling tab row is used.
+ * The tabs use a classic sliding glassmorphic indicator matching the landing page.
  */
 export function DashboardTopbar({
   health,
@@ -38,12 +36,31 @@ export function DashboardTopbar({
   const [scrolled, setScrolled] = useState(false);
   const light = useTheme().theme === "light";
   const tabs = SECTIONS.filter((s) => TAB_IDS.includes(s.id));
-  // The user picker lives under the Assistant tab.
-  const tabActive: SectionId = active === "users" ? "ask" : active;
-  const activeIndex = Math.max(
-    0,
-    tabs.findIndex((t) => t.id === tabActive),
-  );
+  const tabActive: SectionId = active;
+
+  const handleTabClick = (e: React.MouseEvent<HTMLAnchorElement>, id: SectionId) => {
+    e.preventDefault();
+    onSelect(id);
+
+    if (id === "top") {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+      return;
+    }
+
+    const target = document.getElementById(id);
+    if (target) {
+      const navOffset = 96;
+      const elementPosition = target.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.scrollY - navOffset;
+      window.scrollTo({
+        top: Math.max(0, offsetPosition),
+        behavior: "smooth",
+      });
+    }
+  };
 
   useEffect(() => {
     const bar = barRef.current;
@@ -86,35 +103,55 @@ export function DashboardTopbar({
           aria-label="Bank RAG Guard overview"
           className="flex items-center gap-2.5 justify-self-start rounded-full"
         >
-          <span aria-hidden className="relative grid size-10 place-items-center rounded-xl bg-lime text-lime-ink">
+          <span aria-hidden className="relative grid size-10 place-items-center rounded-xl bg-accent text-bg shadow-sm">
             <Shield className="absolute size-[1.6rem]" strokeWidth={1.5} />
             <FileText className="relative size-3.5" strokeWidth={2} />
           </span>
           <span className="whitespace-nowrap text-[1.05rem] font-semibold tracking-tight">Bank RAG Guard</span>
         </Link>
 
-        {/* md and up: the landing page's gooey tabs */}
+        {/* md and up: sliding glassmorphic tabs matching landing page */}
         <div role="group" aria-label="Dashboard tabs" className="hidden md:block md:justify-self-center">
-          <GooeyNav
-            items={tabs.map((t) => ({ label: t.label, href: `#${t.id}` }))}
-            activeIndex={activeIndex}
-            onChange={(index) => onSelect(tabs[index].id)}
-            theme={light ? "light" : "dark"}
-            size="md"
-            frame={false}
-            color={light ? "#0f1b34" : "#eaf1ff"}
-            style={{
-              "--gn-muted": light ? "rgba(15, 27, 52, 0.78)" : "rgba(244, 247, 255, 0.88)",
-              "--gn-ink": light ? "#0f1b34" : "#f4f7ff",
-            }}
-            particleCount={15}
-            spread={56}
-            animationTime={600}
-            timeVariance={300}
-            gooeyness={0.5}
-            wobble={0.5}
-            hoverEffect
-          />
+          <nav aria-label="Dashboard sections" className="relative flex items-center gap-1 rounded-full p-1">
+            {tabs.map(({ id, label }) => {
+              const isActive = id === tabActive;
+              return (
+                <a
+                  key={id}
+                  href={`#${id}`}
+                  onClick={(e) => handleTabClick(e, id)}
+                  className={cn(
+                    "relative rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors duration-200 select-none outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                    isActive
+                      ? light
+                        ? "text-white font-semibold"
+                        : "text-[#0a1226] font-semibold"
+                      : light
+                        ? "text-slate-700 hover:text-slate-950 hover:bg-black/5"
+                        : "text-fg-dim hover:text-fg hover:bg-white/5"
+                  )}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="dash-topbar-glass-indicator"
+                      className={cn(
+                        "absolute inset-0 rounded-full backdrop-blur-md",
+                        light
+                          ? "bg-[#0f1b34] border border-white/20 shadow-[0_2px_8px_rgba(15,27,52,0.18),inset_0_1px_1px_rgba(255,255,255,0.25)]"
+                          : "bg-white/90 border border-white/60 shadow-[0_4px_16px_rgba(0,0,0,0.25),0_1px_3px_rgba(0,0,0,0.1),inset_0_1px_1px_#ffffff]"
+                      )}
+                      transition={{
+                        type: "spring",
+                        stiffness: 420,
+                        damping: 32,
+                      }}
+                    />
+                  )}
+                  <span className="relative z-10">{label}</span>
+                </a>
+              );
+            })}
+          </nav>
         </div>
 
         {/* Phones: a plain scrolling row */}
@@ -126,22 +163,31 @@ export function DashboardTopbar({
                 <li key={id} className="relative">
                   <a
                     href={`#${id}`}
-                    onClick={() => onSelect(id)}
+                    onClick={(e) => handleTabClick(e, id)}
                     aria-current={current ? "true" : undefined}
                     className={cn(
                       "relative z-10 block rounded-full px-4 py-1.5 text-sm font-medium outline-none transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
-                      current ? "text-fg" : "text-dim hover:text-fg",
+                      current
+                        ? light
+                          ? "text-white font-semibold"
+                          : "text-[#0a1226] font-semibold"
+                        : "text-dim hover:text-fg",
                     )}
                   >
                     {current ? (
                       <motion.span
-                        layoutId="dash-tab"
+                        layoutId="dash-tab-mobile"
                         aria-hidden
                         transition={{ type: "spring", bounce: 0.15, duration: 0.45 }}
-                        className="absolute inset-0 -z-10 rounded-full bg-panel shadow-[var(--card-shadow)]"
+                        className={cn(
+                          "absolute inset-0 -z-10 rounded-full backdrop-blur-md",
+                          light
+                            ? "bg-[#0f1b34] border border-white/20 shadow-sm"
+                            : "bg-white/90 border border-white/60 shadow-sm"
+                        )}
                       />
                     ) : null}
-                    {label}
+                    <span className="relative z-10">{label}</span>
                   </a>
                 </li>
               );

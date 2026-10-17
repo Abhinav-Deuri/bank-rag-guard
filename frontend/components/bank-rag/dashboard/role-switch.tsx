@@ -48,7 +48,7 @@ export function RoleSwitch({
             className={cn(
               "h-11 rounded-full px-4 text-sm font-semibold capitalize outline-none transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.98] motion-reduce:active:scale-100",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-              on ? "bg-lime text-lime-ink" : "bg-inset/70 text-dim hover:bg-inset hover:text-fg",
+              on ? "bg-accent text-bg font-semibold shadow-sm" : "bg-inset/70 text-dim hover:bg-inset hover:text-fg",
             )}
           >
             {user.role}

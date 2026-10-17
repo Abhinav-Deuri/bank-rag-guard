@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChainStatus, deriveChain, type ChainState } from "@/components/bank-rag/chain-status";
 import { CollapsibleSection } from "@/components/bank-rag/collapsible-section";
+import { SearchPill } from "@/components/bank-rag/dashboard/search-pill";
 import { ErrorState } from "@/components/bank-rag/error-state";
 import type { ApiError } from "@/lib/api/errors";
 import type { AuditEntry, AuditResponse } from "@/lib/api/types";
@@ -110,7 +111,7 @@ export function AuditPanel({
       <CollapsibleSection
         title="Audit trail"
         headingLevel="h2"
-        defaultOpen={false}
+        defaultOpen={true}
         summary={<ChainStatus state={chain} compact />}
         bodyClassName="pt-4"
       >
@@ -137,40 +138,29 @@ export function AuditPanel({
             </ErrorState>
           ) : null}
 
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-            <p className="text-xs text-faint" aria-live="off">
-              {checkedAt ? (
-                <>
-                  Last refreshed in this browser{" "}
-                  <span className="num text-dim">{formatClock(checkedAt)}</span>
-                </>
-              ) : loading ? (
-                "Checking…"
-              ) : (
-                "Not checked yet"
-              )}
-            </p>
-            <Button size="sm" variant="secondary" onClick={onRefresh} loading={loading} aria-label="Refresh audit log">
-              {!loading ? <RefreshCw className="size-4" aria-hidden /> : null}
-              Refresh
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SearchPill value={filter} onChange={setFilter} />
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-faint" aria-live="off">
+                {checkedAt ? (
+                  <>
+                    Refreshed <span className="num text-dim">{formatClock(checkedAt)}</span>
+                  </>
+                ) : loading ? (
+                  "Checking…"
+                ) : (
+                  "Not checked yet"
+                )}
+              </p>
+              <Button size="sm" variant="secondary" onClick={onRefresh} loading={loading} aria-label="Refresh audit log">
+                {!loading ? <RefreshCw className="size-4" aria-hidden /> : null}
+                Refresh
+              </Button>
+            </div>
           </div>
 
           {data ? (
             <>
-              <div>
-                <label htmlFor="audit-filter" className="mb-1.5 block text-xs font-medium text-faint">
-                  Filter displayed events
-                </label>
-                <input
-                  id="audit-filter"
-                  type="search"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  placeholder="Actor, action or details"
-                  className="h-10 w-full rounded-lg border border-line bg-bg px-3 text-sm text-fg outline-none transition-colors placeholder:text-faint hover:border-accent/50 focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent/60"
-                />
-              </div>
 
               {entries.length > 0 ? (
                 <ol className="max-h-[30rem] space-y-2.5 overflow-y-auto pr-1" aria-label="Latest audit events">

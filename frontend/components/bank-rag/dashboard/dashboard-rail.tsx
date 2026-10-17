@@ -26,7 +26,21 @@ export function DashboardRail({ active, onSelect }: { active: SectionId; onSelec
             <li key={id}>
               <a
                 href={`#${id}`}
-                onClick={() => onSelect(id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onSelect(id);
+                  if (id === "top") {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    return;
+                  }
+                  const target = document.getElementById(id);
+                  if (target) {
+                    const navOffset = 96;
+                    const elementPosition = target.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.scrollY - navOffset;
+                    window.scrollTo({ top: Math.max(0, offsetPosition), behavior: "smooth" });
+                  }
+                }}
                 aria-label={label}
                 aria-current={current ? "true" : undefined}
                 title={label}

@@ -26,7 +26,7 @@ export function Avatar({
       style={{ background: `oklch(0.84 0.09 ${hue})`, color: `oklch(0.26 0.06 ${hue})` }}
       className={cn(
         "grid size-10 shrink-0 select-none place-items-center rounded-full text-sm font-semibold uppercase",
-        ring && "ring-2 ring-lime ring-offset-2 ring-offset-panel",
+        ring && "ring-2 ring-accent ring-offset-2 ring-offset-panel",
         className,
       )}
     >

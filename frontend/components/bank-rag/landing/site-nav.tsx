@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { motion } from "framer-motion";
 import { BrandWordmark } from "@/components/bank-rag/brand-mark";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/bank-rag/theme-toggle";
 import { useTheme } from "@/components/bank-rag/theme-provider";
-import GooeyNav from "@/components/ui/gooey-nav";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
@@ -19,22 +19,63 @@ const ITEMS = [
 const SECTION_IDS = ["how-it-works", "demo"];
 
 /**
- * Floating pill nav. The wordmark, the GooeyNav link group (React Bits) and the primary
+ * Floating pill nav. The wordmark, the sliding glassmorphic link group and the primary
  * action share one glass pill, so they stay legible over the animated hero backdrop.
- * The active link follows the section in view (a simple scroll spy), and clicking a link
- * triggers the gooey transition while the browser scrolls to its anchor.
+ * The active link follows the section in view (scroll spy) with a smooth sliding indicator,
+ * and clicking a link smoothly scrolls to the section.
  */
 export function SiteNav() {
   const [active, setActive] = useState(0);
   const { theme } = useTheme();
   const light = theme === "light";
+  const isClickScrolling = useRef(false);
+  const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string, index: number) => {
+    e.preventDefault();
+    setActive(index);
+    isClickScrolling.current = true;
+    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+    scrollTimeout.current = setTimeout(() => {
+      isClickScrolling.current = false;
+    }, 900);
+
+    if (href === "#main" || href === "#") {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+      return;
+    }
+
+    const target = document.querySelector(href);
+    if (target) {
+      const navOffset = 84;
+      const elementPosition = target.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.scrollY - navOffset;
+      window.scrollTo({
+        top: Math.max(0, offsetPosition),
+        behavior: "smooth",
+      });
+    }
+  };
 
   useEffect(() => {
     const spy = () => {
+      if (isClickScrolling.current) return;
+      const atBottom =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 80;
+      if (atBottom) {
+        setActive(2);
+        return;
+      }
+
       let index = 0;
       SECTION_IDS.forEach((id, i) => {
         const el = document.getElementById(id);
-        if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.4) index = i + 1;
+        if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.45) {
+          index = i + 1;
+        }
       });
       setActive(index);
     };
@@ -44,6 +85,7 @@ export function SiteNav() {
     return () => {
       window.removeEventListener("scroll", spy);
       window.removeEventListener("resize", spy);
+      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
     };
   }, []);
 
@@ -61,26 +103,46 @@ export function SiteNav() {
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Hidden on phones: the wordmark and the primary action are enough there. */}
           <div className="hidden sm:block">
-            <GooeyNav
-              items={ITEMS}
-              activeIndex={active}
-              onChange={(index) => setActive(index)}
-              theme={light ? "light" : "dark"}
-              size="md"
-              frame={false}
-              color={light ? "#0f1b34" : "#eaf1ff"}
-              style={{
-                "--gn-muted": light ? "rgba(15, 27, 52, 0.78)" : "rgba(244, 247, 255, 0.88)",
-                "--gn-ink": light ? "#0f1b34" : "#f4f7ff",
-              }}
-              particleCount={15}
-              spread={56}
-              animationTime={600}
-              timeVariance={300}
-              gooeyness={0.5}
-              wobble={0.5}
-              hoverEffect
-            />
+            <nav aria-label="Section links" className="relative flex items-center gap-1 rounded-full p-1">
+              {ITEMS.map((item, index) => {
+                const isActive = active === index;
+                return (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    onClick={(e) => handleNavClick(e, item.href, index)}
+                    className={cn(
+                      "relative rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors duration-200 select-none outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      isActive
+                        ? light
+                          ? "text-white font-semibold"
+                          : "text-[#0a1226] font-semibold"
+                        : light
+                          ? "text-slate-700 hover:text-slate-950 hover:bg-black/5"
+                          : "text-fg-dim hover:text-fg hover:bg-white/5"
+                    )}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="nav-glass-indicator"
+                        className={cn(
+                          "absolute inset-0 rounded-full backdrop-blur-md",
+                          light
+                            ? "bg-[#0f1b34] border border-white/20 shadow-[0_2px_8px_rgba(15,27,52,0.18),inset_0_1px_1px_rgba(255,255,255,0.25)]"
+                            : "bg-white/90 border border-white/60 shadow-[0_4px_16px_rgba(0,0,0,0.25),0_1px_3px_rgba(0,0,0,0.1),inset_0_1px_1px_#ffffff]"
+                        )}
+                        transition={{
+                          type: "spring",
+                          stiffness: 420,
+                          damping: 32,
+                        }}
+                      />
+                    )}
+                    <span className="relative z-10">{item.label}</span>
+                  </a>
+                );
+              })}
+            </nav>
           </div>
           <ThemeToggle />
           <Link

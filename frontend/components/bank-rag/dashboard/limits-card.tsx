@@ -15,7 +15,7 @@ export function LimitsCard() {
         Thirty questions a minute per visitor and 400 a day across the whole demo. Masked text is sent to outside model
         services here; hosting them on LinuxONE is the production goal.
       </p>
-      <Button asChild variant="lime" size="lg" className="mt-5 w-full rounded-full">
+      <Button asChild variant="primary" size="lg" className="mt-5 w-full rounded-full">
         <Link href="/#how-it-works">See how it works</Link>
       </Button>
     </section>

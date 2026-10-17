@@ -187,7 +187,7 @@ export function InsightsChart({ response, loading }: { response: AskResponse | n
                           className={cn(
                             "block w-full rounded-t-2xl transition-colors duration-200",
                             on
-                              ? "bg-[linear-gradient(180deg,var(--lime),color-mix(in_oklab,var(--lime)_72%,#2a6a00))]"
+                              ? "bg-[linear-gradient(180deg,var(--accent),color-mix(in_oklab,var(--accent)_72%,#1e3fd8))]"
                               : "bg-inset group-hover:bg-line",
                           )}
                         />

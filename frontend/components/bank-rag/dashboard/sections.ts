@@ -11,11 +11,11 @@ export interface DashboardSection {
 
 /** Section anchors shared by the top tabs and the icon rail. */
 export const SECTIONS: DashboardSection[] = [
-  { id: "top", label: "Dashboard", icon: LayoutGrid },
+  { id: "top", label: "Overview", icon: LayoutGrid },
+  { id: "users", label: "Identity", icon: Users },
   { id: "ask", label: "Assistant", icon: MessageSquareText },
   { id: "insights", label: "Insights", icon: ChartColumn },
   { id: "audit", label: "Audit", icon: ScrollText },
-  { id: "users", label: "Demo users", icon: Users },
 ];
 
-export const TAB_IDS: SectionId[] = ["top", "ask", "insights", "audit"];
+export const TAB_IDS: SectionId[] = ["top", "users", "ask", "insights", "audit"];

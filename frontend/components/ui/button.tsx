@@ -10,7 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: "bg-accent text-bg hover:bg-[color-mix(in_oklab,var(--accent)_88%,white)]",
-        lime: "bg-lime font-semibold text-lime-ink hover:brightness-95 active:brightness-90",
+        lime: "bg-accent font-semibold text-bg hover:bg-[color-mix(in_oklab,var(--accent)_88%,white)]",
         secondary: "border border-line bg-raised text-fg hover:border-accent/60 hover:bg-inset",
         outline: "border border-line text-fg hover:border-accent/60 hover:bg-raised",
         ghost: "text-dim hover:bg-raised hover:text-fg",

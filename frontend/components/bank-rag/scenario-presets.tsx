@@ -55,7 +55,7 @@ export function ScenarioPresets({
                   "border-line-soft bg-bg/50 text-dim hover:border-line hover:bg-inset/60 hover:text-fg",
                   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
                   "disabled:pointer-events-none disabled:opacity-50",
-                  active && "border-lime bg-lime/15 text-fg",
+                  active && "border-accent bg-accent/15 text-fg shadow-[0_0_12px_rgba(56,189,248,0.2)]",
                 )}
               >
                 <span

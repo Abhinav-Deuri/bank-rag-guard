@@ -68,7 +68,7 @@ export const QuestionComposer = forwardRef<HTMLTextAreaElement, QuestionComposer
           Each question is answered on its own; the assistant has no memory of earlier ones. Personal data in your
           question is masked before it goes further.
         </p>
-        <Button type="submit" variant="lime" size="md" loading={loading} disabled={disabled} className="min-w-40 rounded-full">
+        <Button type="submit" variant="primary" size="md" loading={loading} disabled={disabled} className="min-w-40 rounded-full">
           {loading ? (
             "Asking…"
           ) : (

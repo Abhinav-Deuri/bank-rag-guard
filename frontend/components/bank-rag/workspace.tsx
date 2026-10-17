@@ -8,17 +8,14 @@ import { AnswerPanel } from "@/components/bank-rag/answer-panel";
 import { AuditPanel } from "@/components/bank-rag/audit-panel";
 import { BackendSetupHelp } from "@/components/bank-rag/backend-setup-help";
 import { deriveChain } from "@/components/bank-rag/chain-status";
-import { AccessPass } from "@/components/bank-rag/dashboard/access-pass";
 import { DashboardRail } from "@/components/bank-rag/dashboard/dashboard-rail";
 import { DashboardTopbar } from "@/components/bank-rag/dashboard/dashboard-topbar";
+import { IdentitySection } from "@/components/bank-rag/dashboard/identity-section";
 import { InsightsChart } from "@/components/bank-rag/dashboard/insights-chart";
 import { LimitsCard } from "@/components/bank-rag/dashboard/limits-card";
 import { QuickActions } from "@/components/bank-rag/dashboard/quick-actions";
-import { RoleSwitch } from "@/components/bank-rag/dashboard/role-switch";
-import { SearchPill } from "@/components/bank-rag/dashboard/search-pill";
 import type { SectionId } from "@/components/bank-rag/dashboard/sections";
 import { StatCard } from "@/components/bank-rag/dashboard/stat-card";
-import { DemoUserSelector } from "@/components/bank-rag/demo-user-selector";
 import { ErrorState } from "@/components/bank-rag/error-state";
 import { QuestionComposer } from "@/components/bank-rag/question-composer";
 import { ScenarioPresets } from "@/components/bank-rag/scenario-presets";
@@ -27,31 +24,6 @@ import { useAudit } from "@/hooks/use-audit";
 import { useHealth } from "@/hooks/use-health";
 import { useUsers } from "@/hooks/use-users";
 import type { Scenario } from "@/lib/scenarios";
-import { cn } from "@/lib/utils";
-
-/**
- * Grid item. Below `xl` the main column and the side column are flattened into one list (their
- * wrappers use `display: contents`), so `order` decides what comes first on small screens: the
- * user picker before the question, the audit last. From `xl` up the two columns are real grids and
- * the order classes drop out.
- */
-function Item({
-  order,
-  id,
-  className,
-  children,
-}: {
-  order: string;
-  id?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div id={id} className={cn(order, "min-w-0 lg:col-start-2 xl:order-none xl:col-auto", className)}>
-      {children}
-    </div>
-  );
-}
 
 export function Workspace() {
   const health = useHealth();
@@ -72,10 +44,23 @@ export function Workspace() {
     setGreeting(hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
   }, []);
 
+  const isClickScrolling = useRef(false);
+  const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const handleSelectSection = useCallback((id: SectionId) => {
+    setSection(id);
+    isClickScrolling.current = true;
+    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+    scrollTimeout.current = setTimeout(() => {
+      isClickScrolling.current = false;
+    }, 900);
+  }, []);
+
   // Scroll spy: the tab and rail icon follow the section that most recently passed the reading line.
   useEffect(() => {
-    const ids: SectionId[] = ["ask", "users", "insights", "audit"];
+    const ids: SectionId[] = ["users", "ask", "insights", "audit"];
     const update = () => {
+      if (isClickScrolling.current) return;
       if (window.scrollY < 80) return setSection("top");
       const line = window.innerHeight * 0.35;
       let best: SectionId = "top";
@@ -95,6 +80,7 @@ export function Workspace() {
     return () => {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
+      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
     };
   }, []);
 
@@ -181,55 +167,71 @@ export function Workspace() {
           health={health.state}
           onRecheck={health.recheck}
           active={section}
-          onSelect={setSection}
+          onSelect={handleSelectSection}
           username={selected}
         />
-        {/* The top bar floats (fixed), so reserve its height in the flow. */}
+        {/* Floating top bar height offset */}
         <div aria-hidden className="h-[var(--dash-bar-h,7.5rem)] md:h-[var(--dash-bar-h,4.75rem)]" />
 
         <div
           id="main"
-          className="mt-3 grid gap-5 lg:mt-4 lg:grid-cols-[3.75rem_minmax(0,1fr)] xl:grid-cols-[3.75rem_minmax(0,1fr)_21.5rem]"
+          className="mt-3 grid gap-6 lg:mt-5 lg:grid-cols-[3.75rem_minmax(0,1fr)]"
         >
-          <DashboardRail active={section} onSelect={setSection} />
+          <DashboardRail active={section} onSelect={handleSelectSection} />
 
-          {/* Main column */}
-          <div className="contents xl:col-start-2 xl:grid xl:min-w-0 xl:content-start xl:gap-5">
-            <Item order="order-1" className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-              <div className="min-w-0 space-y-1.5">
-                <span className="inline-block rounded-full border border-warn/40 bg-warn/10 px-2.5 py-0.5 text-xs font-medium text-warn">
-                  Demo environment
-                </span>
-                <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-[2.1rem]">
-                  {greeting}
-                  {selected ? `, ${selected}` : ""}
-                </h1>
-                <p className="max-w-prose text-[0.95rem] leading-relaxed text-dim">
-                  Ask about bank documents, then check what the server applied and what it logged. All data is
-                  synthetic or public.
-                </p>
-              </div>
-              <SearchPill value={auditFilter} onChange={setAuditFilter} />
-            </Item>
+          {/* Main Disciplined Content Area */}
+          <div className="space-y-6 min-w-0 lg:col-start-2">
+            {/* Tier 1: System Status, Header & Consolidated Identity */}
+            <div className="space-y-5">
+              <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+                <div className="min-w-0 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-block rounded-full border border-warn/40 bg-warn/10 px-2.5 py-0.5 text-xs font-medium text-warn">
+                      Demo environment
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-raised/60 px-2.5 py-0.5 text-xs font-medium text-faint">
+                      <span className="size-1.5 rounded-full bg-accent animate-pulse" />
+                      LinuxONE Zero-Leakage Enclave
+                    </span>
+                  </div>
+                  <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-[2.1rem]">
+                    {greeting}{selected ? `, ${selected}` : ""}
+                  </h1>
+                  <p className="max-w-prose text-[0.95rem] leading-relaxed text-dim">
+                    Ask about bank documents, then inspect what the server masked and cryptographically recorded. All data is synthetic or public.
+                  </p>
+                </div>
+              </header>
 
-            {health.state.status === "down" && users.state.status !== "ready" ? (
-              <Item order="order-2">
+              {health.state.status === "down" && users.state.status !== "ready" ? (
                 <BackendSetupHelp />
-              </Item>
-            ) : null}
+              ) : null}
 
-            {/* Ask card + stats */}
-            <Item order="order-3" id="ask">
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+              {/* Consolidated Identity Section */}
+              <IdentitySection
+                state={users.state}
+                selectedUser={selectedUser}
+                selected={selected}
+                onSelect={selectUser}
+                onReload={users.reload}
+              />
+            </div>
+
+            {/* Tier 2: Core Interactive Hub (Two-Column Grid) */}
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+              {/* Left: Ask Assistant, Presets & Answer Panel */}
+              <div id="ask" className="space-y-6 min-w-0">
                 <section aria-labelledby="ask-heading" className="dash-card p-5 sm:p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h2 id="ask-heading" className="text-base font-semibold">
+                      <h2 id="ask-heading" className="text-base font-semibold text-fg">
                         Ask the assistant
                       </h2>
-                      <p className="mt-0.5 text-sm text-dim">One question at a time, as {selected ?? "a demo user"}.</p>
+                      <p className="mt-0.5 text-sm text-dim">
+                        Query bank documents as <span className="font-semibold text-fg">{selected ?? "a demo user"}</span>.
+                      </p>
                     </div>
-                    <Button variant="lime" size="sm" className="rounded-full" onClick={newQuestion}>
+                    <Button variant="primary" size="sm" className="rounded-full" onClick={newQuestion}>
                       New
                       <Plus className="size-4" aria-hidden />
                     </Button>
@@ -275,8 +277,8 @@ export function Workspace() {
                             <ErrorState
                               tone={
                                 ask.state.error.kind === "rate_limited" || ask.state.error.kind === "timeout"
-                                  ? "warn"
-                                  : "bad"
+                              ? "warn"
+                              : "bad"
                               }
                               title={
                                 ask.state.error.kind === "rate_limited"
@@ -302,13 +304,23 @@ export function Workspace() {
                   </div>
                 </section>
 
-                <div className="grid grid-cols-2 content-start gap-4" aria-label="Summary">
+                <div id="answer">
+                  <div aria-live="polite" className="sr-only">
+                    {announcement}
+                  </div>
+                  <AnswerPanel state={ask.state} />
+                </div>
+              </div>
+
+              {/* Right: Security Metrics Telemetry & Screening Insights */}
+              <div id="insights" className="space-y-6 min-w-0">
+                <div className="grid grid-cols-2 gap-4" aria-label="Query Security Metrics">
                   <StatCard
                     icon={ShieldCheck}
                     tone="oklch(0.6 0.2 295)"
                     label="Clearance"
                     value={selectedUser ? `Tier ${selectedUser.tier}` : "—"}
-                    hint={selectedUser ? `${selectedUser.role}, applied by the server` : "No user selected"}
+                    hint={selectedUser ? `${selectedUser.role}, applied by server` : "No user selected"}
                   />
                   <StatCard
                     icon={FileText}
@@ -359,53 +371,38 @@ export function Workspace() {
                     hintTone={chain === "intact" ? "ok" : chain === "broken" ? "bad" : "warn"}
                   />
                 </div>
+
+                <InsightsChart response={response} loading={loading} />
               </div>
-            </Item>
+            </div>
 
-            <Item order="order-4" id="answer">
-              <div aria-live="polite" className="sr-only">
-                {announcement}
+            {/* Tier 3: Cryptographic Audit Trail, Limits & Governance */}
+            <div id="audit" className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+              {/* Left: Tamper-evident Audit Panel */}
+              <div className="min-w-0">
+                <AuditPanel
+                  data={audit.data}
+                  error={audit.error}
+                  loading={audit.loading}
+                  checkedAt={audit.checkedAt}
+                  onRefresh={audit.refresh}
+                  filter={auditFilter}
+                  onFilterChange={setAuditFilter}
+                />
               </div>
-              <AnswerPanel state={ask.state} />
-            </Item>
 
-            <Item order="order-5">
-              <InsightsChart response={response} loading={loading} />
-            </Item>
-          </div>
-
-          {/* Side column */}
-          <div className="contents xl:col-start-3 xl:row-start-1 xl:grid xl:min-w-0 xl:content-start xl:gap-5">
-            <Item order="order-2" id="users">
-              <DemoUserSelector state={users.state} selected={selected} onSelect={selectUser} onReload={users.reload} />
-            </Item>
-            <Item order="order-6" className="space-y-4">
-              <AccessPass user={selectedUser} />
-              <RoleSwitch users={userList} selected={selected} onSelect={selectUser} />
-            </Item>
-            <Item order="order-7">
-              <QuickActions
-                onNew={newQuestion}
-                onRefreshAudit={audit.refresh}
-                onClear={ask.reset}
-                refreshing={audit.loading}
-                canClear={ask.state.status !== "idle"}
-              />
-            </Item>
-            <Item order="order-8" id="audit">
-              <AuditPanel
-                data={audit.data}
-                error={audit.error}
-                loading={audit.loading}
-                checkedAt={audit.checkedAt}
-                onRefresh={audit.refresh}
-                filter={auditFilter}
-                onFilterChange={setAuditFilter}
-              />
-            </Item>
-            <Item order="order-9">
-              <LimitsCard />
-            </Item>
+              {/* Right: Quick Governance Actions & System Limits */}
+              <div className="space-y-6 min-w-0">
+                <QuickActions
+                  onNew={newQuestion}
+                  onRefreshAudit={audit.refresh}
+                  onClear={ask.reset}
+                  refreshing={audit.loading}
+                  canClear={ask.state.status !== "idle"}
+                />
+                <LimitsCard />
+              </div>
+            </div>
           </div>
         </div>
       </div>
