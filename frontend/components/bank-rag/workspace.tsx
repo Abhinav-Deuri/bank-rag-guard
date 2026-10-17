@@ -191,7 +191,7 @@ export function Workspace() {
                     </span>
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-raised/60 px-2.5 py-0.5 text-xs font-medium text-faint">
                       <span className="size-1.5 rounded-full bg-accent animate-pulse" />
-                      LinuxONE Zero-Leakage Enclave
+                      Backend on IBM LinuxONE
                     </span>
                   </div>
                   <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-[2.1rem]">

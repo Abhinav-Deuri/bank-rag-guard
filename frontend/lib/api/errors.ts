@@ -76,7 +76,7 @@ export function errorFromResponse(status: number, body: unknown): ApiError {
   if (status === 429) {
     return new ApiError(
       "rate_limited",
-      "Request limit reached. The backend allows 6 questions per minute per visitor and 400 per day across the whole demo, and it doesn't say which one applied. Wait before trying again; a short wait may not be enough if the daily limit was hit.",
+      "Request limit reached. The backend allows 30 questions per minute per visitor and 400 per day across the whole demo, and it doesn't say which one applied. Wait before trying again; a short wait may not be enough if the daily limit was hit.",
       status,
     );
   }
@@ -89,6 +89,10 @@ export function errorFromResponse(status: number, body: unknown): ApiError {
       detail ? `The request wasn't in the expected format (${detail}).` : "The request wasn't in the expected format.",
       status,
     );
+  }
+  if (status === 503) {
+    // The backend says plainly that the model or database is unavailable; show its short message.
+    return new ApiError("server", detail ?? "A service the backend depends on is unavailable. Please try again in a minute.", status);
   }
   if (status >= 500) {
     return new ApiError(
