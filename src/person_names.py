@@ -2,6 +2,16 @@
 import re
 
 # ---------- Name lists, read from the Faker library's built-in data (no network needed) ----------
+def normalize_ar(text):
+    """Normalize Arabic spelling variants (alif, yaa, taa marbuta) and strip diacritics."""
+    if not text:
+        return ""
+    text = re.sub(r"[\u064B-\u0652\u0670]", "", text)  # Strip tashkeel
+    text = re.sub(r"[أإآٱ]", "ا", text)                # Normalize alif variants
+    text = re.sub(r"ة", "ه", text)                    # Normalize taa marbuta
+    text = re.sub(r"ى", "ي", text)                    # Normalize alif maqsura
+    return text
+
 def _faker_names(locale, attribute):
     """Return one name list from a Faker locale as a set (empty if it cannot be read)."""
     try:
@@ -10,14 +20,52 @@ def _faker_names(locale, attribute):
     except Exception:
         return set()
 
+# Built-in fallback name lists so the system works reliably even if Faker is missing on s390x
+FALLBACK_FIRST_EN = {
+    "James", "John", "Robert", "Michael", "William", "David", "Richard", "Joseph", "Thomas", "Charles",
+    "Christopher", "Daniel", "Matthew", "Anthony", "Donald", "Mark", "Paul", "Steven", "Andrew", "Kenneth",
+    "Joshua", "Kevin", "Brian", "George", "Timothy", "Ronald", "Edward", "Jason", "Jeffrey", "Ryan",
+    "Jacob", "Gary", "Nicholas", "Eric", "Jonathan", "Stephen", "Larry", "Justin", "Scott", "Brandon",
+    "Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", "Karen",
+    "Lisa", "Nancy", "Betty", "Margaret", "Sandra", "Ashley", "Kimberly", "Emily", "Donna", "Michelle",
+    "Carol", "Amanda", "Dorothy", "Melissa", "Deborah", "Stephanie", "Rebecca", "Sharon", "Laura", "Cynthia",
+    "Kathleen", "Amy", "Angela", "Shirley", "Anna", "Brenda", "Pamela", "Emma", "Nicole", "Helen",
+    "Samantha", "Katherine", "Christine", "Debra", "Rachel", "Carolyn", "Janet", "Catherine", "Maria", "Heather",
+    "Ahmed", "Fatima", "Mohammed", "Ali", "Omar", "Noor", "Harvey", "Ray", "Rich", "Jackie",
+    "Danny", "Warren", "Tommy", "Barry", "Owen", "Sheryl", "Tony", "Greg", "Natasha"
+}
+FALLBACK_LAST_EN = {
+    "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
+    "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+    "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+    "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores",
+    "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera", "Campbell", "Mitchell", "Carter", "Roberts"
+}
+FALLBACK_FIRST_AR = {
+    "محمد", "أحمد", "احمد", "علي", "فاطمة", "مريم", "سارة", "عمر", "خالد", "عبدالله", "يوسف",
+    "إبراهيم", "ابراهيم", "نورة", "ريم", "منى", "حسن", "حسين", "سالم", "زايد", "سلطان", "راشد",
+    "سعيد", "حمد", "منصور", "طارق", "فيصل", "جمال", "محمود", "ليلى", "هند", "أمل", "امل",
+    "هدى", "سميرة", "عائشة", "موزة", "شيخة", "حصة", "جميلة", "مرتضي", "أغاريد", "اغاريد", "عفراء"
+}
+FALLBACK_LAST_AR = {
+    "المنصور", "المهيري", "الفلاسي", "الشامسي", "النعيمي", "المكتوم", "النهيان", "القاسمي", "الكعبي",
+    "الكتبي", "المرزوقي", "الهاشمي", "الظاهري", "السويدي", "الحوسني", "الرميثي", "البلوشي", "الحجر",
+    "الهنوء", "الأزد", "الازد", "العتيبة", "الزعابي", "الدرمكي", "المزروعي", "المطروشي", "الشحي"
+}
+
 # English-script name lists combined from several Faker locales for wider coverage
 EN_LOCALES = ["en_US", "en_GB", "en_CA", "en_AU", "en_IE", "en_NZ", "en_IN",
               "es_ES", "es_MX", "de_DE", "fr_FR", "it_IT", "pt_BR", "nl_NL"]
-FIRST_EN, LAST_EN = set(), set()
+FIRST_EN, LAST_EN = FALLBACK_FIRST_EN.copy(), FALLBACK_LAST_EN.copy()
 for _loc in EN_LOCALES:
     FIRST_EN |= _faker_names(_loc, "first_names")
     LAST_EN |= _faker_names(_loc, "last_names")
-FIRST_AR, LAST_AR = _faker_names("ar_AA", "first_names"), _faker_names("ar_AA", "last_names")
+FIRST_AR = FALLBACK_FIRST_AR.copy() | _faker_names("ar_AA", "first_names")
+LAST_AR = FALLBACK_LAST_AR.copy() | _faker_names("ar_AA", "last_names")
+
+# Precomputed normalized Arabic sets for spelling-insensitive matching
+FIRST_AR_NORM = {normalize_ar(w) for w in FIRST_AR}
+LAST_AR_NORM = {normalize_ar(w) for w in LAST_AR}
 
 # ---------- Words that are capitalised but are not names (compared in lower case) ----------
 NOT_NAMES = {
@@ -92,8 +140,8 @@ RULES = [
     # a name at the very start of a text or line, followed by a comma and a typical opening word,
     # or by a request word, e.g. "Lincoln, We need..." or "Kattie could you..." (no name list needed)
     ("cue", re.compile(rf"(?:\A|(?<=\n))({CAP})(?=,[ ](?i:our|your|the|we|i|please|this|here|my|it)\b|[ ](?:could|can|would|will|please)\b)"), NOT_NAMES),
-    ("pair", re.compile(rf"(?<![A-Za-z])({CAP})[ ]({CAP})(?![A-Za-z])"), (FIRST_EN, LAST_EN)),
-    ("pair", re.compile(rf"(?<![{AR}])({AR_WORD})[ ]({AR_WORD})(?![{AR}])"), (FIRST_AR, LAST_AR)),
+    ("pair", re.compile(rf"(?<![A-Za-z])({CAP})[ ]({CAP})(?![A-Za-z])"), (FIRST_EN, LAST_EN, False)),
+    ("pair", re.compile(rf"(?<![{AR}])({AR_WORD})[ ]({AR_WORD})(?![{AR}])"), (FIRST_AR_NORM, LAST_AR_NORM, True)),
     # first name after a context word, e.g. "reminder for Stephen", "Connect with Harvey"
     ("first", re.compile(rf"(?<![A-Za-z])(?i:{FIRST_CTX})[ ]+({CAP})(?:[ ]({CAP}))?(?![A-Za-z])"), (FIRST_EN, LAST_EN)),
     # first name at the start of a sentence followed by a comma or a request word, e.g. "Kattie could you ..."
@@ -107,7 +155,8 @@ def _trim(group_text, start, stop_words):
     """Keep the leading words of the group up to the first stop word; return (start, end) or None."""
     end = None
     for m in re.finditer(r"\S+", group_text):
-        if m.group(0).strip(".,;:!?،؛").lower() in stop_words:
+        token = m.group(0).strip(".,;:!?،؛")
+        if token.lower() in stop_words or normalize_ar(token) in stop_words or token in stop_words:
             break                                    # a stop word ends the name
         end = m.end()
     return None if end is None else (start, start + end)
@@ -123,11 +172,18 @@ def find_names(text):
                     continue
                 s, e = trimmed
             elif kind == "pair":                     # both words must be in the name lists
-                first, last = extra
-                # the second word may be a last name or a first name ("Cassie August")
-                if m.group(1) not in first or (m.group(2) not in last and m.group(2) not in first) \
-                        or m.group(1).lower() in NOT_NAMES:
-                    continue
+                first, last, is_ar = extra
+                w1 = normalize_ar(m.group(1)) if is_ar else m.group(1)
+                w2 = normalize_ar(m.group(2)) if is_ar else m.group(2)
+                if not is_ar:
+                    if (w1 not in first or (w2 not in last and w2 not in first)
+                            or w1.lower() in NOT_NAMES or w2.lower() in NOT_NAMES):
+                        continue
+                else:
+                    if (w1 not in first or (w2 not in last and w2 not in first)
+                            or m.group(1) in AR_STOP or m.group(2) in AR_STOP
+                            or normalize_ar(m.group(1)) in AR_STOP or normalize_ar(m.group(2)) in AR_STOP):
+                        continue
                 s, e = m.start(1), m.end(2)
             else:                                    # "first": the first word must be a known first name
                 first, last = extra
