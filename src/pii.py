@@ -123,13 +123,18 @@ PATTERNS = [
     ("CARD_CVV", re.compile(r"(?i)(?:\bcvv2?\b|\bcvc2?\b|security code|verification (?:code|value))"
                            r"[^\d\n]{0,25}?(?<!\d)(\d{3,4})(?!\d)"), 1, None),
 
-    # PIN after the word PIN: "PIN - 8824", "PIN 1644"
-    ("PIN", re.compile(r"(?i)(?<![A-Za-z])pin(?: code| number)?(?![A-Za-z])[^\d\n]{0,10}(?<!\d)(\d{4,6})(?!\d)"),
+    # PIN after the word PIN or Arabic equivalents: "PIN - 8824", "الرقم السري 1644"
+    ("PIN", re.compile(
+        r"(?i)(?<![A-Za-z\u0621-\u064A])"
+        r"(?:pin(?: code| number)?|atm pin|card pin|secret code|security pin|"
+        r"الرقم السري|الرمز السري|رمز الأمان|رمز الامان|رمز التحقق|كود التحقق|رمز pin)"
+        r"(?![A-Za-z\u0621-\u064A])[^\d\n]{0,15}(?<!\d)(\d{4,6})(?!\d)"),
      1, None),
 
-    # BIC / SWIFT code after the word BIC or SWIFT: 8 or 11 capital letters/digits in the BIC layout
-    ("BIC", re.compile(r"(?i:\b(?:bic|swift)\b)[^\n]{0,30}?"
-                       r"(?<![A-Za-z0-9])([A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)(?![A-Za-z0-9])"), 1, None),
+    # BIC / SWIFT code after BIC or SWIFT (English/Arabic): 8 or 11 capital letters/digits in the BIC layout
+    ("BIC", re.compile(
+        r"(?i:\b(?:bic|swift)(?: code)?\b|سويفت|رمز سويفت|كود سويفت)[^\n]{0,30}?"
+        r"(?<![A-Za-z0-9])([A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)(?![A-Za-z0-9])"), 1, None),
 
     # UAE mobile: 05X XXX XXXX, 00971 5X XXX XXXX or +971 5X XXX XXXX
     ("PHONE", re.compile(r"(?<![\d\-])(?:(?:\+|00)971[ \-]?|0)5\d[ \-]?\d{3}[ \-]?\d{4}(?!\d)"), 0, None),
@@ -154,12 +159,18 @@ PATTERNS = [
     ("URL", re.compile(r'(?i)(?<![\w@])(?:https?://|www\.)[^\s<>"\')\]]*[^\s<>"\')\].,;:!?]'), 0, None),
 
     # Account number: an account/payment word, up to 60 non-digit characters, then 8-16 digits.
-    # Group 1 is the number itself; a number right after a currency symbol is an amount and is skipped.
-    ("ACCOUNT_NUMBER", re.compile(r"(?i)(?<!\w)" + _ACCOUNT_WORDS + r"[^\d\n]{0,60}(?<![\d$€£¥])(\d{8,16})(?!\d)"),
+    # Group 1 is the number itself; a number right after a currency symbol or currency code (AED, SAR, USD, EUR, etc.) is an amount and is skipped.
+    ("ACCOUNT_NUMBER", re.compile(
+        r"(?i)(?<!\w)" + _ACCOUNT_WORDS + r"[^\d\n]{0,60}?"
+        r"(?<![\d$€£¥])(?<!AED\s)(?<!AED)(?<!Dhs\s)(?<!Dhs)(?<!USD\s)(?<!USD)(?<!EUR\s)(?<!EUR)(?<!SAR\s)(?<!SAR)(?<!GBP\s)(?<!GBP)"
+        r"(\d{8,16})(?!\d)"),
      1, _not_a_date),
     # Account number after a transfer or payment word and "to": "transfer of ¥2582... to 23564969"
-    ("ACCOUNT_NUMBER", re.compile(r"(?i)(?<!\w)(?:transfer(?:red)?|wire[d]?|deposit(?:ed)?|payment|paid|sent?)\b"
-                                  r"[^\n]{0,80}?\b(?:to|into)\s+(?:account\s+|acct\s+)?(?<![\d$€£¥])(\d{8,16})(?!\d)"),
+    ("ACCOUNT_NUMBER", re.compile(
+        r"(?i)(?<!\w)(?:transfer(?:red)?|wire[d]?|deposit(?:ed)?|payment|paid|sent?)\b"
+        r"[^\n]{0,80}?\b(?:to|into)\s+(?:account\s+|acct\s+)?"
+        r"(?<![\d$€£¥])(?<!AED\s)(?<!AED)(?<!Dhs\s)(?<!Dhs)(?<!USD\s)(?<!USD)(?<!EUR\s)(?<!EUR)(?<!SAR\s)(?<!SAR)(?<!GBP\s)(?<!GBP)"
+        r"(\d{8,16})(?!\d)"),
      1, _not_a_date),
 ]
 

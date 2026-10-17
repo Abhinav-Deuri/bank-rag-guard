@@ -1,6 +1,9 @@
-"""Combined masker: structured identifiers first (pii.py), then person names (person_names.py)."""
-import pii
-import person_names
+try:
+    from . import pii
+    from . import person_names
+except (ImportError, ValueError):
+    import pii
+    import person_names
 
 def find_all(text):
     """All PII spans as (start, end, label); name spans never overlap a structured finding."""

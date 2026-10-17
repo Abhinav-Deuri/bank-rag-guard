@@ -1,0 +1,5 @@
+Dataset,Language,Test_Size,Target,Labelled_Tokens,Findings,Recall,Precision_Name,Precision_Any_PII,F1_Score,Notes_Fully_Masked,Evaluation_Type
+Customer Notes (Arabic),ar,152 notes,Customer Full Names,760,758,0.998,0.989,1.0,0.993,0.987,Synthetic Ground Truth (Optimistic)
+Customer Notes (English),en,148 notes,Customer Full Names,444,443,0.997,0.991,1.0,0.994,0.993,Synthetic Ground Truth (Optimistic)
+ai4privacy Benchmark (Dev Slice),en,"1,000 examples",FIRSTNAME / LASTNAME / MIDDLENAME,462,365,0.684,0.778,1.0,0.728,,Standard Benchmark (ai4privacy/pii-masking-200k)
+ai4privacy Benchmark (Fresh Unseen),en,"1,000 examples",FIRSTNAME / LASTNAME / MIDDLENAME,485,348,0.67,0.802,0.986,0.73,,Honest Unseen Test Slice (Offset 5000+)
