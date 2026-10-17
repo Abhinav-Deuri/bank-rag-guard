@@ -57,7 +57,10 @@ def screen(question, examples):
     m = re.search(r'"block"\s*:\s*(true|false)', out, re.I)
     if not m:
         return True, "unreadable guard reply (blocked to be safe)"
-    return m.group(1).lower() == "true", out[:200].replace("\n", " ")
+    blocked = m.group(1).lower() == "true"
+    rm = re.search(r'"reason"\s*:\s*"([^"]*)"', out)
+    reason = rm.group(1).strip() if rm else out[:200].replace("\n", " ")
+    return blocked, reason
 
 def guarded_answer(conn, username, question, examples):
     """Screen first; if allowed, run the normal RAG pipeline."""

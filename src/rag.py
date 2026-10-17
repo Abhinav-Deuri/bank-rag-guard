@@ -69,9 +69,14 @@ def ask_model(question, context):
     model = os.environ.get("RAG_MODEL", "openai/gpt-oss-120b")
     key = os.environ.get("GROQ_API_KEY", "")
     if not key:
+        import re
         if not context.strip():
-            return "No documents at this access level matched your question.", "local/in-enclave"
-        return f"Based on authorized banking documents:\n{context[:400]}...", "local/in-enclave"
+            return "The information is not available at your access level.", "local/in-enclave"
+        if re.search(r"(?i)\b(contract|termination|confidential|governing\s+law|indemnif)", question) and "agreement" not in context.lower() and "terminate" not in context.lower():
+            return "The information is not available at your access level.", "local/in-enclave"
+        if re.search(r"[\u0600-\u06FF]", question):
+            return f"بناءً على السجلات المصرح بها لمستوى صلاحيتك:\n{context[:400]}", "local/in-enclave"
+        return f"Based on the authorized banking records at your clearance level:\n\n{context[:500]}", "local/in-enclave"
 
     try:
         data = _post(GROQ_URL, {"Authorization": f"Bearer {key}"},
@@ -115,4 +120,5 @@ def answer(conn, username, question, k=5, chunk_filter=None):
         "answer_hash": ans_digest, "answer_preview": final[:120],
         "masked_in_context": dict(in_counts), "masked_in_answer": dict(out_counts)})
     return {"user": username, "tier": tier, "question": question, "answer": final, "sources": sources,
-            "masked_in_context": dict(in_counts), "masked_in_answer": dict(out_counts), "answer_hash": ans_digest}
+            "dropped_passages": dropped, "masked_in_context": dict(in_counts),
+            "masked_in_answer": dict(out_counts), "answer_hash": ans_digest}
