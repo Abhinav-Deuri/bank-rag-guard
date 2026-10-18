@@ -176,11 +176,13 @@ function Trace({ steps, animate }: { steps: Step[]; animate: boolean }) {
   );
 }
 
-/** The safeguards as a row of small status boxes, with a button that opens the full trace. */
+/** Under each answer: only what the person needs to act on (a block, a withheld passage, a review
+ * alert), and a link that opens the full list of safeguard steps. */
 function Strip({ steps, open, onToggle }: { steps: Step[]; open: boolean; onToggle: () => void }) {
+  const issues = steps.filter((s) => s.status === "fail" || s.status === "warn");
   return (
     <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5" aria-label="What the safeguards did">
-      {steps.map((s) => (
+      {issues.map((s) => (
         <span key={s.stage} className="term-stat" data-s={s.status} title={`${s.stage}: ${s.detail}${s.hint ? `. ${s.hint}` : ""}`}>
           {s.short}
         </span>
@@ -194,7 +196,7 @@ function Strip({ steps, open, onToggle }: { steps: Step[]; open: boolean; onTogg
         }}
         className="term-link text-[13px]"
       >
-        {open ? "Hide details" : "Details"}
+        {open ? "Hide security checks" : "Security checks"}
       </button>
     </div>
   );
@@ -356,8 +358,7 @@ export function Thread({
         const active = turn.key === activeKey;
         const latest = turn.key === lastAsked?.key;
         const steps = turn.response ? stepsFor(turn.response, maxTier) : null;
-        const flagged = Boolean(steps?.some((s) => s.status === "warn" || s.status === "fail"));
-        const open = choice[turn.key] ?? (latest && flagged);
+        const open = choice[turn.key] ?? false;
         return (
           <li key={turn.key}>
             <article

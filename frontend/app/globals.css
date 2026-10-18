@@ -382,7 +382,7 @@
 
 /*
   AEGIS-Z product theme (landing and workspace).
-  A calm, professional security-console look: neutral dark slate surfaces, one blue for actions, and
+  A calm, professional security-console look: deep navy surfaces in rounded cards, one blue for actions, and
   green / amber / red used only for status. The console (conversation and command line) sits in a
   darker well so it stands apart from the frame. IBM Plex Sans for reading, IBM Plex Mono only for
   codes, IDs, fingerprints, masked tokens and the command input.
@@ -390,22 +390,22 @@
 */
 .term {
   color-scheme: dark;
-  --screen: #0d1117;
-  --well: #090c10;
-  --ink-950: #0d1117;
-  --ink-900: #161b22;
-  --ink-850: #1c2129;
-  --ink-800: #262c36;
-  --line: #30363d;
-  --line-soft: #21262d;
-  --fg: #e6edf3;
-  --fg-dim: #b1bac4;
-  --fg-faint: #8b949e;
-  --accent: #58a6ff;
-  --accent-strong: #1f6feb;
+  --screen: #0a0d1c;
+  --well: #060814;
+  --ink-950: #0a0d1c;
+  --ink-900: #11152b;
+  --ink-850: #161b36;
+  --ink-800: #1e2445;
+  --line: #2a3156;
+  --line-soft: #1c2242;
+  --fg: #e9ecf8;
+  --fg-dim: #b4bad6;
+  --fg-faint: #8b92b4;
+  --accent: #8199ff;
+  --accent-strong: #3d5afe;
   --ok: #3fb950;
-  --warn: #d29922;
-  --bad: #f85149;
+  --warn: #d6a32e;
+  --bad: #ff6b6b;
   --redact: #c9d1d9;
   --redact-ink: #0d1117;
   font-family: "IBM Plex Sans", "IBM Plex Sans Arabic", system-ui, "Segoe UI", sans-serif;
@@ -414,10 +414,10 @@
   background: var(--screen);
 }
 body:has(.term) {
-  background: #0d1117;
+  background: #0a0d1c;
 }
 .view-plain body:has(.term) {
-  background: #ffffff;
+  background: #f2f4f8;
 }
 .term .font-doc,
 .term .font-sans {
@@ -613,6 +613,61 @@ body:has(.term) {
   }
 }
 
+/* Workspace sidebar and stat cards. */
+.side-card {
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--ink-900);
+}
+.side-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  color: var(--fg-dim);
+  text-align: start;
+  font-size: 14px;
+  cursor: pointer;
+}
+.side-item:hover {
+  background: var(--ink-850);
+  color: var(--fg);
+}
+.side-item[aria-current="page"],
+.side-item[aria-pressed="true"] {
+  background: var(--ink-800);
+  color: var(--fg);
+}
+.side-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--fg-faint);
+}
+.side-item[aria-current="page"] svg,
+.side-item[aria-pressed="true"] svg {
+  color: var(--accent);
+}
+.side-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.stat-card {
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--ink-900);
+  padding: 0.8rem 1rem 0.85rem;
+  text-align: start;
+}
+button.stat-card:hover {
+  border-color: var(--line);
+}
+.console-card {
+  border-color: var(--line);
+}
+
 kbd {
   display: inline-block;
   padding: 0 0.35em;
@@ -722,12 +777,12 @@ kbd {
 /* ---------- Plain view: the same screen, light ---------- */
 .view-plain .term:not(.boot-screen) {
   color-scheme: light;
-  --screen: #ffffff;
-  --well: #f6f8fa;
-  --ink-950: #ffffff;
-  --ink-900: #f6f8fa;
-  --ink-850: #eef1f4;
-  --ink-800: #e2e6ea;
+  --screen: #f2f4f8;
+  --well: #ffffff;
+  --ink-950: #f2f4f8;
+  --ink-900: #ffffff;
+  --ink-850: #eef1f6;
+  --ink-800: #e3e8f0;
   --line: #d0d7de;
   --line-soft: #e6eaef;
   --fg: #1f2328;
