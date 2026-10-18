@@ -8,8 +8,8 @@ Built for the **IBM Z Datathon, Theme 2: Privacy, Identity & Secure AI.** All da
 
 | | |
 |---|---|
-| **Try it** | `TODO: add the public demo link` |
-| **Watch the demo** | `TODO: add the video link` |
+| **Try it** | `[Demo](https://bank-rag-guard.vercel.app/)` |
+| **Watch the demo** | `[Video](https://drive.google.com/file/d/1wrY50o4QJAle7GA-V1Zuzh7ioDSgpLKg/view?usp=sharing)` |
 | **Team** | Abhinav Deuri, Rachit Harjani, Adhan Ali, Rithika Maheshkumar, Alok Kurien Matthew, Mis-ab Muhammed Unais |
 
 ---
