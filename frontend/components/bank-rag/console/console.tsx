@@ -51,32 +51,33 @@ export function Console() {
   const controller = useRef<AbortController | null>(null);
   const refreshAudit = audit.refresh;
 
-  // Resizable & Collapsible sidebar state with lazy initialization
-  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
-    if (typeof window === "undefined") return 460;
-    try {
-      const savedWidth = localStorage.getItem("bankrag_sidebar_width");
-      if (savedWidth) {
-        const w = parseInt(savedWidth, 10);
-        if (!isNaN(w) && w >= 320 && w <= 760) return w;
-      }
-    } catch {}
-    return 460;
-  });
-
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      const savedCollapsed = localStorage.getItem("bankrag_sidebar_collapsed");
-      if (savedCollapsed !== null) return savedCollapsed === "true";
-    } catch {}
-    return false;
-  });
-
+  // Resizable & Collapsible sidebar state (SSR-safe initial values)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(460);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isDesktop, setIsDesktop] = useState<boolean>(true);
   const sidebarWidthRef = useRef(sidebarWidth);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Restore saved width and collapsed preference on client after hydration
+  useEffect(() => {
+    const handle = requestAnimationFrame(() => {
+      try {
+        const savedWidth = localStorage.getItem("bankrag_sidebar_width");
+        if (savedWidth) {
+          const w = parseInt(savedWidth, 10);
+          if (!isNaN(w) && w >= 320 && w <= 760) {
+            setSidebarWidth(w);
+          }
+        }
+        const savedCollapsed = localStorage.getItem("bankrag_sidebar_collapsed");
+        if (savedCollapsed !== null) {
+          setIsCollapsed(savedCollapsed === "true");
+        }
+      } catch {}
+    });
+    return () => cancelAnimationFrame(handle);
+  }, []);
 
   useEffect(() => {
     sidebarWidthRef.current = sidebarWidth;
@@ -517,6 +518,7 @@ export function Console() {
 
         {/* Independent scrollable sidebar */}
         <aside
+          suppressHydrationWarning
           style={
             isDesktop
               ? {
