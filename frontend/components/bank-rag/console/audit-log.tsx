@@ -50,6 +50,15 @@ function ChainStatus({ audit }: { audit: Audit }) {
 export function AuditLog({ audit }: { audit: Audit }) {
   const [onlyBlocked, setOnlyBlocked] = useState(false);
   const rows = useMemo(() => (audit.data?.entries ?? []).map(toAuditRow), [audit.data]);
+  // Mark the entries that arrived with the latest refresh (what the last action wrote).
+  // Derived while rendering, from the previous data, so no effect is needed.
+  const [seen, setSeen] = useState(audit.data);
+  const [newFrom, setNewFrom] = useState(Number.POSITIVE_INFINITY);
+  if (audit.data !== seen) {
+    const prevMax = Math.max(0, ...(seen?.entries ?? []).map((e) => e.id));
+    setSeen(audit.data);
+    setNewFrom(seen ? prevMax + 1 : Number.POSITIVE_INFINITY);
+  }
   const shown = onlyBlocked ? rows.filter((r) => r.kind === "blocked" || r.kind === "alert") : rows;
   const hasHashes = rows.some((r) => r.hash);
   const hasTimes = rows.some((r) => r.time);
@@ -114,7 +123,7 @@ export function AuditLog({ audit }: { audit: Audit }) {
               {shown.map((row, i) => {
                 const broken = brokenLink(row, i);
                 return (
-                  <tr key={row.id} className="align-top">
+                  <tr key={row.id} className={cn("align-top", row.id >= newFrom && "term-new")}>
                     <td className="border-b border-line-soft py-2 pe-2 text-dim">{row.id}</td>
                     {hasTimes && <td className="border-b border-line-soft px-2 py-2 text-faint">{row.time}</td>}
                     <td className="border-b border-line-soft px-2 py-2 font-sans text-[13px]">

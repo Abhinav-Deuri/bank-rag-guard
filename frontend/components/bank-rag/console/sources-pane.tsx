@@ -59,6 +59,13 @@ export function SourcesPane({
       {empty && <p className="mt-2.5 text-sm text-dim">{empty}</p>}
 
       {sources.length > 0 && (
+        <p className="mt-2 text-[13px] text-dim">
+          What the model read, with <span className="redact-bar">NAME 1</span> marking a value removed before it did. The
+          same number means the same value.
+        </p>
+      )}
+
+      {sources.length > 0 && (
         <ol className="mt-3">
           {sources.map((s, i) => {
             const on = cite === i + 1;

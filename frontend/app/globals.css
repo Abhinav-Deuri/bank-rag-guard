@@ -468,3 +468,56 @@
 .term-aside section {
   border-color: var(--line-soft);
 }
+/* Trace lines appear one after another when an answer arrives. */
+.term-line-in {
+  animation: term-line-in 0.24s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@keyframes term-line-in {
+  from {
+    opacity: 0;
+    transform: translateX(-0.5ch);
+  }
+}
+/* A text-mode button: [ Label ]. */
+.term-key {
+  color: var(--fg);
+  white-space: nowrap;
+}
+.term-key::before {
+  content: "[ ";
+  color: var(--accent);
+}
+.term-key::after {
+  content: " ]";
+  color: var(--accent);
+}
+.term-key:hover,
+.term-key:focus-visible {
+  background: var(--fg);
+  color: #000;
+  outline: none;
+}
+.term-key:hover::before,
+.term-key:hover::after,
+.term-key:focus-visible::before,
+.term-key:focus-visible::after {
+  color: #000;
+}
+.term-key:disabled {
+  color: var(--fg-faint);
+  background: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .term-line-in {
+    animation: none;
+  }
+}
+/* Audit rows written by the latest action are marked until the next one. */
+.term-new > td {
+  background: var(--ink-850);
+}
+.term-new > td:first-child {
+  box-shadow: inset 2px 0 0 var(--accent);
+  padding-inline-start: 0.6rem;
+}

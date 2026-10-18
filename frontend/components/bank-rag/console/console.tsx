@@ -11,7 +11,7 @@ import { useReveals } from "@/hooks/use-reveals";
 import { codePointLength, cn } from "@/lib/utils";
 import { SourcesPane } from "./sources-pane";
 import { AuditLog } from "./audit-log";
-import { Thread, tierRange, type Turn } from "./thread";
+import { Thread, tierRange, type NextStep, type Turn } from "./thread";
 import { RevealPanel, type RevealDraft } from "./reveal-panel";
 import type { RevealProps } from "./redacted";
 
@@ -197,6 +197,54 @@ export function Console() {
     [users, pending],
   );
 
+  /** Switch identity (if needed) and ask, in one step. Used by the demo menu and the suggested next steps. */
+  const askAs = useCallback(
+    (username: string, question: string) => {
+      const u = users.find((x) => x.username === username);
+      if (!u || pending) return;
+      setChosen(u.username);
+      setDraft(null);
+      setPane("answers");
+      void ask(u, question);
+    },
+    [users, pending, ask],
+  );
+
+  const topUser = useMemo(
+    () => users.reduce<DemoUser | null>((best, u) => (!best || u.tier > best.tier ? u : best), null),
+    [users],
+  );
+  const approver = useMemo(
+    () => users.find((u) => u.role === "auditor") ?? users.find((u) => u.role === "compliance" && u.username !== me?.username),
+    [users, me],
+  );
+
+  const demos = useMemo(
+    () => [
+      {
+        title: "Clearance",
+        does: "Ask about contracts as a teller, who may not read them. Then ask again as compliance.",
+        run: () => askAs("teller1", EXAMPLES[1].question),
+      },
+      {
+        title: "Attack",
+        does: "Tell the assistant to ignore its rules. The guard stops it before any search.",
+        run: () => askAs(me?.username ?? "teller1", EXAMPLES[2].question),
+      },
+      {
+        title: "Arabic",
+        does: "Ask in Arabic. Names, IBANs and Emirates IDs are removed the same way.",
+        run: () => askAs(me?.username ?? "teller1", EXAMPLES[4].question),
+      },
+      {
+        title: "Break-glass",
+        does: "As compliance, see one hidden IBAN, only after a second person approves.",
+        run: () => askAs(topUser?.username ?? "compliance1", EXAMPLES[0].question),
+      },
+    ],
+    [askAs, me, topUser],
+  );
+
   const run = useCallback(
     (raw: string) => {
       const text = raw.trim();
@@ -204,7 +252,11 @@ export function Console() {
       const [word, ...rest] = text.split(/\s+/);
       const cmd = rest.length === 0 ? word.toLowerCase() : "";
 
-      if (cmd === "help" || cmd === "?") {
+      if (/^[1-9]$/.test(cmd) && demos[Number(cmd) - 1]) {
+        demos[Number(cmd) - 1].run();
+      } else if (cmd === "menu") {
+        note(text, <DemoMenu demos={demos} />);
+      } else if (cmd === "help" || cmd === "?") {
         note(text, <HelpText />);
         setMessage(null);
       } else if (cmd === "users") {
@@ -257,7 +309,7 @@ export function Console() {
         void ask(me, text);
       }
     },
-    [ask, fill, me, note, pending, refreshAudit, switchUser, users],
+    [ask, demos, fill, me, note, pending, refreshAudit, switchUser, users],
   );
 
   const submit = () => {
@@ -280,6 +332,62 @@ export function Console() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [run]);
+
+  const nextFor = (turn: Turn): NextStep[] => {
+    const r = turn.response;
+    if (!r || !me) return [];
+    const out: NextStep[] = [];
+    const higher = topUser && topUser.tier > turn.tier ? topUser : null;
+    if (r.blocked) {
+      out.push({
+        label: "See it in the audit log",
+        run: () => {
+          if (isNarrow()) setPane("audit");
+          else document.getElementById("audit-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        },
+      });
+      out.push({ label: "Try asking for raw IBANs", run: () => askAs(turn.username, EXAMPLES[3].question) });
+      return out;
+    }
+    if (higher) {
+      out.push({ label: `Ask the same as ${higher.username} (tier ${higher.tier})`, run: () => askAs(higher.username, turn.question) });
+    }
+    const text = [r.answer, ...r.sources.map((s) => s.text)].join(" ");
+    const tokens = [...text.matchAll(/\[([A-Z][A-Z_]*_\d+)\]/g)].map((m) => m[1]);
+    const token = tokens.find((t) => t.startsWith("IBAN")) ?? tokens[0];
+    const mine = reveals.data?.mine ?? [];
+    if (reveals.data?.can_request && turn.username === me.username && token && r.answer_id != null) {
+      const answerId = r.answer_id;
+      if (!mine.some((m) => m.answer_id === answerId)) {
+        out.push({
+          label: `Request the real ${token.replace(/_(\d+)$/, " $1").replace(/_/g, " ")}`,
+          run: () => {
+            setDraft({
+              answerId,
+              token,
+              askedAt: turn.askedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
+            });
+            if (isNarrow()) setPane("sources");
+            else document.getElementById("reveal-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          },
+        });
+      }
+    }
+    if (mine.some((m) => m.status === "pending") && approver) {
+      out.push({ label: `Switch to ${approver.username} to approve`, run: () => switchUser(approver.username) });
+    }
+    if (mine.some((m) => m.status === "approved")) {
+      out.push({
+        label: "Show the approved value",
+        run: () => {
+          if (isNarrow()) setPane("sources");
+          else document.getElementById("reveal-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        },
+      });
+    }
+    if (!out.length) out.push({ label: "Back to the demo menu", run: () => run("menu") });
+    return out.slice(0, 3);
+  };
 
   const pickCite = (turnKey: number, n: number) => {
     setActiveKey(turnKey);
@@ -342,15 +450,18 @@ export function Console() {
 
         {me && (
           <span
-            className="flex items-baseline gap-x-2"
+            className="min-w-0"
             aria-label={`${me.username} can read ${tierRange(me.tier)}`}
           >
-            <span className="text-accent">Reads</span>
-            {Array.from({ length: maxTier }, (_, i) => i + 1).map((n) => (
-              <span key={n} className={cn("num", n <= me.tier ? "text-fg" : "text-faint line-through")}>
-                {n <= me.tier ? `[${n}]` : ` ${n} `}
+            <span className="text-dim">{me.role}, </span>
+            <span className="text-accent">reads </span>
+            <span className="whitespace-nowrap text-fg">{tierRange(me.tier)}</span>
+            {me.tier < maxTier && (
+              <span className="whitespace-nowrap text-faint">
+                {" "}
+                ({me.tier + 1 === maxTier ? `tier ${maxTier}` : `tiers ${me.tier + 1}–${maxTier}`} locked)
               </span>
-            ))}
+            )}
           </span>
         )}
 
@@ -395,7 +506,7 @@ export function Console() {
               <p className="mb-4 text-dim">The backend has no demo identities yet. Run notebook 02 to create them.</p>
             )}
 
-            {turns.length === 0 && me && <Welcome me={me} onPick={fill} />}
+            {turns.length === 0 && me && <Welcome me={me} demos={demos} />}
 
             <Thread
               turns={turns}
@@ -410,6 +521,7 @@ export function Console() {
               }}
               onStop={() => controller.current?.abort()}
               revealFor={revealFor}
+              nextFor={nextFor}
             />
           </div>
         </main>
@@ -504,12 +616,17 @@ export function Console() {
             }}
             aria-describedby="command-help"
             aria-invalid={tooLong}
-            placeholder={me ? `ask as ${me.username}, or type help` : "type help"}
+            placeholder={me ? `type a question as ${me.username} and press Enter` : "type help"}
             className="min-w-0 flex-1 border-b border-line-soft bg-transparent px-0.5 py-0.5 text-base text-ok sm:text-[14px] caret-[var(--input)] outline-none placeholder:text-faint focus:border-ok"
           />
-          <span className={cn("num shrink-0 text-xs", tooLong ? "text-bad" : "text-faint")}>
-            {codePointLength(line)}/{MAX_QUESTION_LENGTH}
-          </span>
+          {codePointLength(line) > MAX_QUESTION_LENGTH - 100 && (
+            <span className={cn("num shrink-0 text-xs", tooLong ? "text-bad" : "text-faint")}>
+              {codePointLength(line)}/{MAX_QUESTION_LENGTH}
+            </span>
+          )}
+          <button type="submit" disabled={!line.trim() || Boolean(pending)} className="term-key shrink-0">
+            {pending ? "Working" : "Run"}
+          </button>
         </form>
         <div id="command-help" className="mt-1.5 flex flex-wrap gap-x-5 gap-y-0.5 text-[13px]">
           {KEYS.map((k) => (
@@ -527,47 +644,42 @@ export function Console() {
   );
 }
 
-function Welcome({ me, onPick }: { me: DemoUser; onPick: (q: string) => void }) {
+function Welcome({ me, demos }: { me: DemoUser; demos: { title: string; does: string; run: () => void }[] }) {
   return (
-    <div className="max-w-[76ch] pb-4 text-dim">
+    <div className="max-w-[76ch] pb-4">
       <p className="text-fg">
-        Signed in as {me.username}, {me.role}, reading {tierRange(me.tier)}.
+        A bank assistant that answers from customer complaints, contracts and internal email, and only from what the
+        person asking is cleared to read.
       </p>
-      <p className="mt-2">
-        Ask about customer complaints, contracts or internal email, in English or Arabic. Documents above your tier are
-        never searched, and names, IBANs, Emirates IDs and phone numbers are removed before the model reads anything.
+      <p className="mt-2 text-dim">
+        You are {me.username}, a {me.role} who reads {tierRange(me.tier)}. Before the model sees anything, documents
+        above your tier are left out and names, IBANs, Emirates IDs and phone numbers are removed. Every step is
+        written to a log that can be checked for tampering.
       </p>
-      <p className="mt-4 text-accent">A three-minute tour</p>
-      <ol className="mt-1 space-y-1">
-        <li>
-          <span className="text-faint">1 </span>
-          As teller1, ask about{" "}
-          <PickLink q={EXAMPLES[1].question} onPick={onPick}>
-            contract termination terms
-          </PickLink>
-          . Contracts are tier 2 and 3, so the search never returns them.
-        </li>
-        <li>
-          <span className="text-faint">2 </span>
-          Type <span className="text-ok">user compliance1</span> (or press F2) and ask the same question.
-        </li>
-        <li>
-          <span className="text-faint">3 </span>
-          Try{" "}
-          <PickLink q={EXAMPLES[2].question} onPick={onPick}>
-            a prompt injection
-          </PickLink>
-          . It is blocked and written to the audit log.
-        </li>
-        <li>
-          <span className="text-faint">4 </span>
-          As compliance1, select a removed value such as <span className="redact-bar">IBAN 1</span> to request it. A
-          second person has to approve.
-        </li>
+      <DemoMenu demos={demos} />
+      <p className="mt-4 text-dim">
+        Or type your own question below and press Enter, in English or Arabic. Type{" "}
+        <span className="text-ok">help</span> for commands.
+      </p>
+    </div>
+  );
+}
+
+function DemoMenu({ demos }: { demos: { title: string; does: string; run: () => void }[] }) {
+  return (
+    <div className="mt-5">
+      <p className="text-accent">Try a demo (click, or type its number)</p>
+      <ol className="mt-1.5 space-y-1">
+        {demos.map((d, i) => (
+          <li key={d.title} className="grid grid-cols-[3ch_15ch_1fr] gap-x-1 max-sm:grid-cols-[3ch_1fr]">
+            <span className="text-fg">{i + 1}</span>
+            <button type="button" onClick={d.run} className="term-key justify-self-start">
+              {d.title}
+            </button>
+            <span className="text-dim max-sm:col-start-2">{d.does}</span>
+          </li>
+        ))}
       </ol>
-      <p className="mt-4">
-        Type <span className="text-ok">help</span> for commands. Up and down arrows recall what you typed.
-      </p>
     </div>
   );
 }
