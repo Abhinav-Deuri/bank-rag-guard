@@ -55,3 +55,12 @@ def test_every_planted_identifier_is_masked_in_the_synthetic_notes():
         masked, _ = masker.mask_all(content)
         for key in ("eid", "iban", "phone"):
             assert t[key] not in masked, (key, masked)
+
+
+def test_arabic_question_words_after_customer_are_not_names():
+    """Found by the multilingual guard set: in "لدى العميل للإبلاغ" the word after "the customer" is "to report"."""
+    for text in ("كم يوماً لدى العميل للإبلاغ عن معاملة متنازع عليها؟", "ماذا يريد العميل بالحساب الجديد؟",
+                 "العميل يحتاج إلى بطاقة جديدة"):
+        assert masker.mask_all(text)[0] == text
+    masked, _ = masker.mask_all("العميل فالح المنصوري قدّم شكوى")
+    assert "فالح" not in masked

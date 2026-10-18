@@ -102,7 +102,13 @@ AR_STOP = {
     "هو", "هي", "قد", "قام", "قدم", "قدّم", "طلب", "أبلغ", "تقدم", "يطلب", "لديه", "لدى", "مع", "أن", "إن",
     "بخصوص", "بشأن", "حول", "الإماراتية", "المسجل", "المسجلة", "صاحب", "صاحبة", "الحساب", "البطاقة",
     "المصرفي", "المستخدم", "الشركة", "البنك", "الفرع", "وقد", "ولدينا", "كان", "كانت", "يرجى", "نود",
+    # verbs that follow "العميل" in staff questions ("ماذا يريد العميل", "العميل يحتاج إلى")
+    "يريد", "تريد", "يحتاج", "تحتاج", "يستطيع", "تستطيع", "يمكن", "يمكنه", "يمكنها", "يجب", "عليه", "عليها",
+    "أن", "لم", "لا", "ما", "إذا", "اذا", "بعد", "قبل", "عند", "خلال", "حتى", "منذ",
 }
+# Names do not start with these prefixes (li-l "for the", bi-l "with the", ka-l "like the"; not fa-l: فالح),
+# but nouns and verbal nouns after "العميل" in a question often do: "العميل للإبلاغ" ("the customer, to report").
+AR_NOT_NAME_PREFIX = ("لل", "بال", "كال")
 
 # ---------- English building blocks ----------
 # A capitalised word: Smith, O'Brien, Smith-Jones, McGlynn
@@ -165,6 +171,8 @@ def _trim(group_text, start, stop_words):
         token = m.group(0).strip(".,;:!?،؛")
         if token.lower() in stop_words or normalize_ar(token) in stop_words or token in stop_words:
             break                                    # a stop word ends the name
+        if token.startswith(AR_NOT_NAME_PREFIX):
+            break                                    # "للإبلاغ", "بالحساب": not a name
         end = m.end()
     return None if end is None else (start, start + end)
 

@@ -238,11 +238,12 @@ The demo allows 30 questions a minute per visitor and 400 a day overall, so the 
 **5. Tests and measurements (optional)**
 
 ```bash
-# 28 tests on a throwaway database; needs PostgreSQL with pgvector, no API keys
+# 38 tests on a throwaway database; needs PostgreSQL with pgvector, no API keys
 TEST_DATABASE_URL=postgresql://user:password@localhost/postgres pytest tests
 
 python eval/red_team.py                 # attack, judge, learn; writes eval/red_team_*.csv (uses the API keys)
 python eval/benchmark_name_masker.py    # masking recall and precision on the data/ test sets
+python eval/multilingual_guard.py       # our guard vs Llama Prompt Guard 2 on English, Arabic, Arabizi, mixed attacks
 ```
 
 ## What's in the repository
@@ -258,7 +259,8 @@ src/
   guard.py              The question guard and the document check
   vault.py              Break-glass reveal: request, second-person approval, one-time reveal
 frontend/               The website (Next.js)
-eval/                   red_team.py (attack, judge, learn), benchmark_name_masker.py, saved score tables
+eval/                   red_team.py (attack, judge, learn), multilingual_guard.py (Arabizi and mixed-language
+                        attacks vs Llama Prompt Guard 2), benchmark_name_masker.py, saved score tables
 scripts/                reembed_masked.py (one-time fix), generator for the project briefing PDF
 tests/                  Automated tests (pytest)
 01 to 07 *.ipynb        One notebook per build step, with outputs
