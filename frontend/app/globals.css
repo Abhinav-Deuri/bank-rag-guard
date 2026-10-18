@@ -379,3 +379,92 @@
     scroll-behavior: auto !important;
   }
 }
+
+/*
+  Workspace terminal theme, after the IBM 3279 colour display used with ISPF on IBM Z:
+  black screen, turquoise for protected labels, green for the input field, yellow for
+  warnings, red for errors, white for intensified data, and reverse video for highlighted
+  fields (here: the current user and removed personal data). Dark only, whatever the site theme.
+  Every text colour below is >= 7:1 on black.
+*/
+.term {
+  color-scheme: dark;
+  --ink-950: #000000;
+  --ink-900: #000000;
+  --ink-850: #0b1a20;
+  --ink-800: #12262e;
+  --line: #2f5866;
+  --line-soft: #1b3740;
+  --fg: #e6ebe4;
+  --fg-dim: #b3bfb8;
+  --fg-faint: #8d9c98;
+  --accent: #62d3e3;
+  --accent-strong: #62d3e3;
+  --ok: #86e08f;
+  --warn: #f2d468;
+  --bad: #ff7b7b;
+  --input: #86e08f;
+  --redact: #e6ebe4;
+  --redact-ink: #000000;
+  font-family: "IBM Plex Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  background: #000;
+}
+.term .font-doc,
+.term .font-sans,
+.term .font-ledger {
+  font-family: "IBM Plex Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
+}
+.term :where(button, input, textarea, select) {
+  border-radius: 0;
+}
+.term :where(.rounded, .rounded-sm, .rounded-md, .rounded-lg) {
+  border-radius: 0;
+}
+.term .redact-bar {
+  border-radius: 0;
+}
+.term ::selection {
+  background: var(--accent);
+  color: #000;
+}
+/* A titled box, like an ISPF panel: the title sits in the top border. */
+.term-box {
+  position: relative;
+  border: 1px solid var(--line);
+}
+.term-box > .term-box-title {
+  position: absolute;
+  top: -0.8em;
+  inset-inline-start: 1ch;
+  padding-inline: 1ch;
+  background: #000;
+  color: var(--accent);
+}
+.term-cursor {
+  display: inline-block;
+  width: 1ch;
+  height: 1.15em;
+  vertical-align: text-bottom;
+  background: var(--input);
+  animation: term-blink 1.06s steps(1) infinite;
+}
+@keyframes term-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .term-cursor {
+    animation: none;
+  }
+}
+.term-aside h2 {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 400;
+}
+.term-aside section {
+  border-color: var(--line-soft);
+}

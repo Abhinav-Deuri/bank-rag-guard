@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import type { ApiError } from "@/lib/api/errors";
 import type { AskResponse } from "@/lib/api/types";
 import { useElapsed } from "@/hooks/use-elapsed";
@@ -14,7 +14,9 @@ export interface Turn {
   question: string;
   askedAt: Date;
   startedAt: number;
-  status: "pending" | "done" | "error";
+  /** "note" is the output of a screen command such as help; it has no response. */
+  status: "pending" | "done" | "error" | "note";
+  note?: ReactNode;
   response?: AskResponse;
   error?: ApiError;
 }
@@ -40,7 +42,7 @@ export function tierRange(tier: number) {
 function Pending({ turn, onStop }: { turn: Turn; onStop: () => void }) {
   const seconds = useElapsed(turn.startedAt);
   return (
-    <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm text-dim">
+    <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-dim">
       <p role="status">
         Screening the question, then searching {tierRange(turn.tier)}. <span className="num">{seconds} s</span> so far;
         answers usually take 10 to 40 seconds.
@@ -83,10 +85,10 @@ function Facts({ turn }: { turn: Turn }) {
 
   return (
     <>
-      <dl className="mt-2.5 flex flex-wrap gap-y-1 text-[12.5px]" aria-label="What the safeguards did">
+      <dl className="mt-2 flex flex-wrap gap-y-0.5 text-[13px]" aria-label="What the safeguards did">
         {facts.map((f) => (
           <div key={f.k} className="me-3.5 flex gap-1.5 border-e border-line-soft pe-3.5 last:border-e-0">
-            <dt className="text-faint">{f.k}</dt>
+            <dt className="text-accent">{f.k}</dt>
             <dd className={cn("num", f.tone === "bad" ? "text-bad" : f.tone === "warn" ? "text-warn" : "text-fg")}>
               {f.v}
             </dd>
@@ -94,7 +96,7 @@ function Facts({ turn }: { turn: Turn }) {
         ))}
       </dl>
       {m?.alert && (
-        <p className="mt-1.5 max-w-[68ch] text-[12.5px] text-warn">
+        <p className="mt-1 max-w-[76ch] text-[13px] text-warn">
           {turn.username} has now seen records of {m.customers_last_hour} different customers within an hour. That can
           add up to more than any single answer shows, so a review alert was written to the audit log.
         </p>
@@ -125,7 +127,7 @@ function Body({
   if (turn.status === "error" && turn.error) {
     const retry = turn.error.kind !== "bad_request" && turn.error.kind !== "cancelled";
     return (
-      <div role="alert" className="mt-3 max-w-[64ch] text-[15px]">
+      <div role="alert" className="mt-2 max-w-[76ch]">
         <span className={cn("font-medium", turn.error.kind === "rate_limited" ? "text-warn" : "text-bad")}>
           {turn.error.kind === "rate_limited"
             ? "Too many questions."
@@ -148,7 +150,7 @@ function Body({
 
   if (r.blocked) {
     return (
-      <p className="mt-3 max-w-[64ch] text-[15px]">
+      <p className="mt-2 max-w-[76ch]">
         <span className="font-medium text-bad">Blocked by the input guard.</span>{" "}
         {r.reason && <span className="text-fg">{sentence(r.reason)} </span>}
         <span className="text-dim">Nothing was searched and the answer model never saw the question.</span>
@@ -160,7 +162,7 @@ function Body({
   // access level") would hint that restricted documents exist, so show a neutral line instead.
   if (r.sources.length === 0) {
     return (
-      <p className="mt-3 max-w-[64ch] font-doc text-[16.5px] leading-relaxed">
+      <p className="mt-2 max-w-[76ch]">
         No documents at {turn.username}’s clearance matched this question.{" "}
         <span className="text-dim">Ask a colleague who has access if you need it.</span>
       </p>
@@ -170,7 +172,7 @@ function Body({
   return (
     <Redacted
       text={r.answer}
-      className="mt-3 max-w-[64ch] font-doc text-[16.5px] leading-[1.7]"
+      className="mt-2 max-w-[76ch] text-fg"
       cite={{ count: r.sources.length, selected: active ? cite : null, onCite }}
       reveal={reveal}
     />
@@ -208,46 +210,52 @@ export function Thread({
   if (!count) return null;
 
   return (
-    <ol className="-mx-4 sm:-mx-5" aria-label="Questions and answers">
+    <ol aria-label="Questions, answers and commands">
       {turns.map((turn, i) => {
         const active = turn.key === activeKey;
         return (
           <li key={turn.key}>
-            <article
-              ref={i === count - 1 ? lastRef : undefined}
-              onClick={() => onSelect(turn.key)}
-              aria-current={active ? "true" : undefined}
-              className={cn(
-                "border-b border-line-soft px-4 py-5 sm:px-5",
-                active ? "bg-raised" : "cursor-pointer hover:bg-raised/50",
-              )}
-            >
-              <p className="num font-ledger text-xs text-faint">
-                <span className="text-dim">
-                  {turn.askedAt.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                  })}
-                </span>
-                <span className="ms-4">
-                  {turn.username}, tier {turn.tier}
-                </span>
-              </p>
-              <h2 dir="auto" className="mt-1.5 max-w-[62ch] text-lg font-medium leading-snug tracking-normal">
-                {turn.question}
-              </h2>
-              <Body
-                turn={turn}
-                active={active}
-                cite={cite}
-                onCite={(n) => onCite(turn.key, n)}
-                onRetry={() => onRetry(turn)}
-                onStop={onStop}
-                reveal={revealFor?.(turn)}
-              />
-              <Facts turn={turn} />
-            </article>
+            {turn.status === "note" ? (
+              <article className="border-b border-line-soft py-3">
+                <p className="text-faint">
+                  <span className="text-accent">Command ===&gt;</span> <span className="text-ok">{turn.question}</span>
+                </p>
+                {turn.note}
+              </article>
+            ) : (
+              <article
+                ref={i === count - 1 ? lastRef : undefined}
+                onClick={() => onSelect(turn.key)}
+                aria-current={active ? "true" : undefined}
+                className={cn(
+                  "-mx-3 border-b border-line-soft border-s-2 px-3 py-3 sm:-mx-5 sm:px-5",
+                  active ? "border-s-accent bg-raised" : "cursor-pointer border-s-transparent hover:bg-raised/60",
+                )}
+              >
+                <p className="num text-[13px] text-faint">
+                  {turn.askedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}
+                  <span className="ms-3">
+                    {turn.username}, tier {turn.tier}
+                  </span>
+                </p>
+                <h2 className="mt-0.5 max-w-[76ch] font-normal text-fg [text-wrap:pretty]">
+                  <span className="text-accent">{turn.username} ===&gt;</span>{" "}
+                  <span dir="auto" className="text-ok">
+                    {turn.question}
+                  </span>
+                </h2>
+                <Body
+                  turn={turn}
+                  active={active}
+                  cite={cite}
+                  onCite={(n) => onCite(turn.key, n)}
+                  onRetry={() => onRetry(turn)}
+                  onStop={onStop}
+                  reveal={revealFor?.(turn)}
+                />
+                <Facts turn={turn} />
+              </article>
+            )}
           </li>
         );
       })}

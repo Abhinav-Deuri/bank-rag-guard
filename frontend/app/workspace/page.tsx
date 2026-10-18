@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "@fontsource-variable/source-serif-4";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/ibm-plex-mono/600.css";
+import "@fontsource/ibm-plex-sans-arabic/400.css";
 import { Console } from "@/components/bank-rag/console/console";
 
 export const metadata: Metadata = {
