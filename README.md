@@ -235,10 +235,27 @@ Open http://localhost:3000 and go to the workspace page.
 
 The demo allows 30 questions a minute per visitor and 400 a day overall, so the free API quotas last.
 
+**Hosting the public demo**
+
+The backend stays on the LinuxONE server, next to the database and keys. The website goes on any Node host (we use
+Vercel), because Next.js has no s390x build to compile on LinuxONE.
+
+1. On the server, add a random secret to `.env` (`openssl rand -hex 24`) as `PROXY_SHARED_SECRET=...`. With it set,
+   the backend answers `/api/*` only for the website, so nobody can call it directly and use up the API quota.
+2. Start the backend on the public interface and keep it running after you log out:
+   ```bash
+   nohup uvicorn app:app --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
+   ```
+   Open port 8000 in the server's firewall or security group. `curl http://<server-ip>:8000/health` from your laptop
+   should answer `{"status":"ok"}`.
+3. Import the repo in Vercel with **Root Directory** `frontend` and two environment variables:
+   `BACKEND_URL=http://<server-ip>:8000` and the same `PROXY_SHARED_SECRET`. Deploy.
+4. Open the Vercel URL, ask one question as each user, and check the audit log says "Chain verified".
+
 **5. Tests and measurements (optional)**
 
 ```bash
-# 38 tests on a throwaway database; needs PostgreSQL with pgvector, no API keys
+# 39 tests on a throwaway database; needs PostgreSQL with pgvector, no API keys
 TEST_DATABASE_URL=postgresql://user:password@localhost/postgres pytest tests
 
 python eval/red_team.py                 # attack, judge, learn; writes eval/red_team_*.csv (uses the API keys)

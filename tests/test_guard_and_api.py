@@ -102,3 +102,12 @@ def test_reveal_endpoints(client):
     value = client.post("/api/reveal/value", json={"username": "compliance1", "request_id": rid}).json()["value"]
     assert value and value not in json.dumps(client.get("/api/audit").json())
     assert client.post("/api/reveal/value", json={"username": "compliance1", "request_id": rid}).status_code == 409
+
+
+def test_with_a_shared_secret_only_the_frontend_proxy_is_answered(client, monkeypatch):
+    monkeypatch.setenv("PROXY_SHARED_SECRET", "s3cret")
+    body = {"username": "teller1", "question": "disputed card transaction"}
+    assert client.post("/api/ask", json=body).status_code == 403                       # direct caller
+    assert client.get("/api/audit", headers={"x-proxy-secret": "wrong"}).status_code == 403
+    assert client.post("/api/ask", json=body, headers={"x-proxy-secret": "s3cret"}).status_code == 200
+    assert client.get("/health").status_code == 200                                    # health checks still work

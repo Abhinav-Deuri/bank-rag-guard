@@ -11,7 +11,6 @@ export default function Home() {
     <>
       <SiteNav />
       <main id="main" className="flex-1">
-        {/* TODO(scroll-expansion-hero): wrap in components/ui/scroll-expansion-hero.tsx once the supplied source is provided. */}
         <StaticHero />
         <Features />
         <HowItWorks />

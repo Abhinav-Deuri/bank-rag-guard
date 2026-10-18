@@ -1,7 +1,7 @@
 # Bank RAG Guard — frontend
 
-Next.js (App Router) + TypeScript + Tailwind v4 + Framer Motion + GSAP ScrollTrigger. It talks to the existing
-FastAPI backend (`../app.py`) through a same-origin proxy. Nothing in the Python backend was changed.
+Next.js (App Router) + TypeScript + Tailwind v4 + Framer Motion + GSAP ScrollTrigger. It talks to the
+FastAPI backend (`../app.py`) through a same-origin proxy.
 
 - `/` landing page
 - `/workspace` interactive demo (choose demo user → ask → answer, security summary, sources, audit trail)
@@ -17,15 +17,8 @@ npm run dev                     # http://localhost:3000
 
 ### Connect the real backend
 
-The backend is not recreatable from this repo alone. Before `uvicorn` will start you need, in the repo root:
-
-| Missing from the zip | What it must provide |
-|---|---|
-| `.env` (`app.py` opens it at import) | `DATABASE_URL`, `JINA_API_KEY`, `GROQ_API_KEY`, optional `RAG_MODEL` |
-| `requirements.txt` (README references it) | `fastapi`, `uvicorn`, `psycopg[binary]`, `pgvector`-capable PostgreSQL client libs, `requests` |
-| PostgreSQL 16 + pgvector with data | built by notebooks `01`–`06` (tables `chunks`, `users`, `audit_log`) |
-
-Then, from the repo root: `uvicorn app:app --host 127.0.0.1 --port 8000`.
+Set up and start the backend as described in the main README (`.env`, `pip install -r requirements.txt`, notebooks
+01 to 06, then `uvicorn app:app --host 127.0.0.1 --port 8000`).
 
 ### Try the UI without the backend (mock)
 
@@ -57,10 +50,10 @@ status codes are preserved; error bodies are reduced to a short `detail`, never 
   server can reach.
 - **Timeouts:** `/api/ask` allows up to 110 s upstream (`maxDuration = 120`); the browser gives up at 120 s. Model calls
   and provider retries can be slow. Check your host's function time limit.
-- **Rate limiter:** the backend limits by `request.client.host` (30/min per visitor, 400/day overall). Behind this proxy
-  every visitor shares the proxy's IP, so the per-minute limit becomes shared. The proxy does not forward or rewrite
-  client IPs. If you want per-visitor limits, that is a backend decision (e.g. uvicorn `--proxy-headers` with a trusted
-  forwarded-for setup).
+- **Rate limiter and access:** the backend allows 30 questions a minute per visitor and 400 a day overall. The proxy
+  forwards the visitor's address in `x-client-ip`; the backend trusts it only from the same machine or with the shared
+  secret. When the backend is on another machine, set the same `PROXY_SHARED_SECRET` in both places: the backend then
+  refuses `/api/*` calls that don't come through this proxy. See "Hosting the public demo" in the main README.
 
 ## Workspace
 

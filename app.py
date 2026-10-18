@@ -3,7 +3,7 @@ import os, sys, json, time, threading
 from collections import defaultdict, deque
 import psycopg
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -75,6 +75,17 @@ def visitor_ip(request: Request) -> str:
     secret = os.environ.get("PROXY_SHARED_SECRET", "")
     trusted = direct in LOOPBACK or (secret and request.headers.get("x-proxy-secret") == secret)
     return claimed if claimed and trusted else direct
+
+@app.middleware("http")
+async def only_the_frontend(request: Request, call_next):
+    """When PROXY_SHARED_SECRET is set (backend reachable from the internet), /api/* answers only the Next.js
+    proxy, which sends the secret, or this machine. Direct callers can't use up the model quota or read the log."""
+    secret = os.environ.get("PROXY_SHARED_SECRET", "")
+    direct = request.client.host if request.client else ""
+    if (secret and request.url.path.startswith("/api/") and direct not in LOOPBACK
+            and request.headers.get("x-proxy-secret") != secret):
+        return JSONResponse({"detail": "Use the Bank RAG Guard website."}, status_code=403)
+    return await call_next(request)
 
 @app.post("/api/ask")
 def ask(body: Ask, request: Request):

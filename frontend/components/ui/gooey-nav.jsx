@@ -231,7 +231,9 @@ const GooeyNav = ({
   const fallbackRef = useRef(null);
   const engineRef = useRef(null);
   const indexRef = useRef(current);
-  indexRef.current = current;
+  useLayoutEffect(() => {
+    indexRef.current = current;
+  });
   const palette = theme === 'light' ? 'light' : 'dark';
   const pillColor = color || PILLS[palette].color;
   const pillRgb = parse(pillColor);
@@ -249,7 +251,9 @@ const GooeyNav = ({
     shadow: PILLS[palette].shadow
   };
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
+  useLayoutEffect(() => {
+    settingsRef.current = settings;
+  });
 
   const select = index => {
     if (index === current) return;

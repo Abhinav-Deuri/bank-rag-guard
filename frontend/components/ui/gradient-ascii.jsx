@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import './gradient-ascii.css';
 
 const MAX_COLORS = 8;
@@ -480,7 +480,9 @@ const GradientASCII = ({
     dpr
   };
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
+  useLayoutEffect(() => {
+    settingsRef.current = settings;
+  });
 
   useEffect(() => {
     const container = containerRef.current;
