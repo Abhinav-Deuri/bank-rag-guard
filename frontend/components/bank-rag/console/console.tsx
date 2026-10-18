@@ -66,6 +66,15 @@ function setView(plain: boolean) {
   }
 }
 
+/** Scroll the side panel (only the panel, never the page) so the heading with this id is at the top. */
+function showInAside(id: string) {
+  const el = document.getElementById(id);
+  const box = el?.closest(".term-aside");
+  if (!el || !box) return;
+  const top = el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - 12;
+  box.scrollTo({ top, behavior: "smooth" });
+}
+
 function isNarrow() {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
 }
@@ -367,7 +376,7 @@ export function Console() {
         label: "See it in the audit log",
         run: () => {
           if (isNarrow()) setPane("audit");
-          else document.getElementById("audit-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          else showInAside("audit-h");
         },
       });
       out.push({ label: "Try asking for raw IBANs", run: () => askAs(turn.username, EXAMPLES[3].question) });
@@ -392,7 +401,7 @@ export function Console() {
               askedAt: turn.askedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
             });
             if (isNarrow()) setPane("sources");
-            else document.getElementById("reveal-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            else showInAside("reveal-h");
           },
         });
       }
@@ -405,7 +414,7 @@ export function Console() {
         label: "Show the approved value",
         run: () => {
           if (isNarrow()) setPane("sources");
-          else document.getElementById("reveal-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          else showInAside("reveal-h");
         },
       });
     }
@@ -440,7 +449,7 @@ export function Console() {
     : (message ?? { tone: "info", text: "Ready. Type a question, or help for commands." });
 
   return (
-    <div className="term flex h-dvh flex-col overflow-hidden text-fg">
+    <div className="term fixed inset-0 flex flex-col overflow-hidden text-fg">
       <BootScreen users={usersState} audit={audit} />
       {/* Title line */}
       <header className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1.5 border-b border-line px-3 py-2 sm:px-5">

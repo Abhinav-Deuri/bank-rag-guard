@@ -535,7 +535,7 @@
   mix-blend-mode: difference;
   opacity: 0;
   transition: opacity 0.15s;
-  will-change: transform, width, height;
+  will-change: transform;
 }
 .term-pointer[data-on="1"] {
   opacity: 1;
@@ -552,20 +552,6 @@
 @media (prefers-reduced-motion: reduce) {
   .term-pointer {
     transition: none;
-  }
-}
-/* Where supported, invert and desaturate what is behind the block, so it is strictly black and white. */
-@supports (backdrop-filter: invert(1)) or (-webkit-backdrop-filter: invert(1)) {
-  .term-pointer {
-    background: transparent;
-    mix-blend-mode: normal;
-    -webkit-backdrop-filter: grayscale(1) invert(1) contrast(1.6);
-    backdrop-filter: grayscale(1) invert(1) contrast(1.6);
-  }
-  .term-pointer[data-down="1"] {
-    background: transparent;
-    -webkit-backdrop-filter: grayscale(1) contrast(1.8);
-    backdrop-filter: grayscale(1) contrast(1.8);
   }
 }
 

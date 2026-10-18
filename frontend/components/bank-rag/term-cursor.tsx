@@ -5,8 +5,8 @@ import { useEffect, useRef } from "react";
 /**
  * A terminal block cursor that replaces the mouse pointer on devices with a mouse.
  *
- * - It inverts whatever is under it (mix-blend-mode: difference), so it reads as a white block on
- *   the black screen and turns text under it black.
+ * - It inverts whatever is under it (mix-blend-mode: difference, which the compositor handles cheaply),
+ *   so it reads as a light block on the dark screen and turns light text under it dark.
  * - Over a link or button it grows to cover the whole element, like a highlighted field on an
  *   operator terminal. Over text fields it hides, so the normal text cursor shows.
  * - It blinks after the pointer rests. With reduced motion it follows the pointer exactly and does
@@ -54,10 +54,12 @@ export function TermCursor() {
     const typing = (node: EventTarget | null) =>
       node instanceof Element && Boolean(node.closest("input, textarea, select, [contenteditable='true']"));
 
+    // The block sits exactly under the pointer every frame (no trailing, which reads as lag). Only its
+    // size eases, when it grows around a button or shrinks back to a character.
     const tick = () => {
-      const k = still ? 1 : 0.28;
-      pos.x += (target.x - pos.x) * k;
-      pos.y += (target.y - pos.y) * k;
+      const k = still ? 1 : 0.5;
+      pos.x = target.x;
+      pos.y = target.y;
       pos.w += (target.w - pos.w) * k;
       pos.h += (target.h - pos.h) * k;
       el.style.transform = `translate3d(${pos.x}px, ${pos.y}px, 0)`;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { ApiError } from "@/lib/api/errors";
 import type { AskResponse } from "@/lib/api/types";
 import { useElapsed } from "@/hooks/use-elapsed";
@@ -333,9 +333,8 @@ export function Thread({
   const count = turns.length;
   const lastAsked = [...turns].reverse().find((t) => t.status !== "note");
 
-  useEffect(() => {
-    if (count) lastRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [count]);
+  // Scrolling to the newest entry is done by the console on its own scroll box. scrollIntoView here
+  // would also scroll the window, pushing the whole screen up.
 
   if (!count) return null;
 

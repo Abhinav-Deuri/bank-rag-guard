@@ -39,7 +39,13 @@ export function SourcesPane({
   const [opened, setOpened] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (cite) refs.current[cite - 1]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    // Scroll only the panel, never the window.
+    const el = cite ? refs.current[cite - 1] : null;
+    const box = el?.closest(".term-aside");
+    if (el && box) {
+      const top = el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - 12;
+      if (top < box.scrollTop || top > box.scrollTop + box.clientHeight - 60) box.scrollTo({ top, behavior: "smooth" });
+    }
   }, [cite, turn?.key]);
 
   const locked = turn ? Array.from({ length: maxTier - turn.tier }, (_, i) => turn.tier + i + 1) : [];
