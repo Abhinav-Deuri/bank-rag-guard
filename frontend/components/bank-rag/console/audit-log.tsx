@@ -113,7 +113,7 @@ export function AuditLog({ audit }: { audit: Audit }) {
           animated={false}
           colors={["#1e3fd8", "#38bdf8", "#a5d8ff"]}
         >
-          <div className="min-h-0 w-full overflow-x-auto overflow-y-auto p-3.5 lg:max-h-[26rem]">
+          <div className="min-h-0 w-full overflow-x-auto p-3.5">
             <table className="num w-full border-collapse font-ledger text-xs">
               <caption className="sr-only">Latest audit log entries, newest first</caption>
               <thead>

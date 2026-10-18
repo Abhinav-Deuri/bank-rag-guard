@@ -524,8 +524,6 @@ export function Console() {
                   maxWidth: isCollapsed ? 0 : `${sidebarWidth}px`,
                   minWidth: isCollapsed ? 0 : "320px",
                   flex: isCollapsed ? "0 0 0px" : `0 0 ${sidebarWidth}px`,
-                  overflowY: isCollapsed ? "hidden" : "auto",
-                  overflowX: "hidden",
                   borderLeftWidth: isCollapsed ? 0 : undefined,
                   opacity: isCollapsed ? 0 : 1,
                   pointerEvents: isCollapsed ? "none" : "auto",
@@ -536,13 +534,13 @@ export function Console() {
               : undefined
           }
           className={cn(
-            "flex min-w-0 flex-col border-line bg-panel lg:border-s",
-            pane === "answers" ? "hidden lg:flex" : "flex w-full flex-1 overflow-y-auto",
+            "flex h-full min-h-0 min-w-0 flex-col border-line bg-panel overflow-hidden lg:border-s",
+            pane === "answers" ? "hidden lg:flex" : "flex w-full flex-1",
             isDesktop && isCollapsed && "lg:hidden",
           )}
         >
           {/* Top header of sidebar with collapse button (desktop only) */}
-          <div className="hidden lg:flex items-center justify-between border-b border-line px-4 py-2.5 text-xs text-faint bg-panel shrink-0">
+          <div className="hidden lg:flex items-center justify-between border-b border-line px-4 py-2.5 text-xs text-faint bg-panel shrink-0 z-10">
             <span className="font-mono text-[11px] uppercase tracking-wider text-dim">
               {sourceCount ? `Context & Verification (${sourceCount})` : "Context & Verification"}
             </span>
@@ -557,11 +555,15 @@ export function Console() {
               <span className="text-[11px]">Collapse</span>
             </button>
           </div>
-          <div className={cn("min-w-0 w-full overflow-hidden", pane === "sources" ? "block" : "hidden lg:block")}>
-            <SourcesPane turn={active} cite={cite} onCite={setCite} maxTier={maxTier} />
-          </div>
-          <div className={cn("min-w-0 w-full overflow-hidden flex-1", pane === "audit" ? "flex" : "hidden lg:flex")}>
-            <AuditLog audit={audit} />
+
+          {/* Internal scrollable container for sidebar content */}
+          <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden">
+            <div className={cn(pane === "sources" ? "block" : "hidden lg:block")}>
+              <SourcesPane turn={active} cite={cite} onCite={setCite} maxTier={maxTier} />
+            </div>
+            <div className={cn(pane === "audit" ? "block" : "hidden lg:block")}>
+              <AuditLog audit={audit} />
+            </div>
           </div>
         </aside>
       </div>
