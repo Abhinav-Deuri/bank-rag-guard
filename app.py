@@ -20,9 +20,9 @@ if os.path.exists(_env_path):
                 os.environ[k.strip()] = v.strip().strip('"').strip("'")
 os.environ.setdefault("RAG_MODEL", "openai/gpt-oss-120b")
 
-import audit, guard, rag, vault                                    # imported after the keys are loaded
+import audit, guard, rag, vault, token_vault, actions, mosaic, factsheet  # imported after the keys are loaded
 
-app = FastAPI(title="Bank RAG Guard demo")
+app = FastAPI(title="AEGIS-Z demo")
 DB_URL = os.environ.get("DATABASE_URL", "dbname=bankrag user=linux1")
 
 # ---- Simple request limits so the free-tier model quota is not used up ----
@@ -55,6 +55,16 @@ class Ask(BaseModel):
     username: str
     question: str
 
+class BreakGlassApprove(BaseModel):
+    token_id: str
+    requested_by: str
+    approved_by: str = "compliance1"
+    justification: str
+
+class ActionExecute(BaseModel):
+    action_id: int
+    username: str
+
 @app.get("/api/users")
 def users():
     """The demo users the visitor can sign in as."""
@@ -84,7 +94,7 @@ async def only_the_frontend(request: Request, call_next):
     direct = request.client.host if request.client else ""
     if (secret and request.url.path.startswith("/api/") and direct not in LOOPBACK
             and request.headers.get("x-proxy-secret") != secret):
-        return JSONResponse({"detail": "Use the Bank RAG Guard website."}, status_code=403)
+        return JSONResponse({"detail": "Use the AEGIS-Z website."}, status_code=403)
     return await call_next(request)
 
 @app.post("/api/ask")
@@ -121,8 +131,53 @@ def ask(body: Ask, request: Request):
             "learned_attacks_count": len(learned_attacks),
             "reason": res.get("reason") if res.get("blocked") else None,
             "answer_id": res.get("answer_id"),
-            "sources": [{"id": s["id"], "source": s["source"], "tier": s["tier"], "score": s["score"], "text": s["text"][:300]}
+            "vault_tokens": res.get("vault_tokens", []),
+            "answer_tokens": res.get("answer_tokens", []),
+            "proposed_actions": res.get("proposed_actions", []),
+            "mosaic": res.get("mosaic"),
+            "sources": [{"id": s["id"], "source": s["source"], "tier": s["tier"], "score": s["score"], "text": s["text"][:300],
+                         "vault_tokens": s.get("vault_tokens", [])}
                         for s in res.get("sources", [])]}
+
+@app.post("/api/break-glass")
+def break_glass_unmask(body: BreakGlassApprove):
+    """Pivot 2: Dual-custody cryptographic break-glass unmasking with SHA-256 audit logging."""
+    try:
+        with db() as conn:
+            return token_vault.approve_break_glass(
+                conn,
+                token_id=body.token_id.strip(),
+                requested_by=body.requested_by.strip(),
+                approved_by=body.approved_by.strip(),
+                justification=body.justification.strip(),
+            )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    except psycopg.OperationalError:
+        raise HTTPException(503, "The database is unavailable.")
+
+@app.post("/api/actions/execute")
+def execute_action(body: ActionExecute):
+    """Pivot 3: Execute a Stage 5.5 sandboxed banking action after verifying provenance and IAM tier."""
+    try:
+        with db() as conn:
+            return actions.execute_sandbox_action(conn, body.action_id, body.username.strip())
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    except psycopg.OperationalError:
+        raise HTTPException(503, "The database is unavailable.")
+
+@app.get("/api/factsheet")
+def factsheet_view():
+    """Pivot 5: Generate live CBUAE / UAE PDPL / Basel III / ISO 42001 compliance attestation FactSheet."""
+    with db() as conn:
+        return factsheet.generate_factsheet(conn)
 
 @app.get("/api/audit")
 def audit_view():
@@ -187,7 +242,7 @@ def health():
 
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bank RAG Guard</title>
+<title>AEGIS-Z</title>
 <style>
 :root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--card:#f5f5f7;--line:#d9d9de;--acc:#0f62fe;--bad:#b3261e;--ok:#1e7a3c}
 @media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--mut:#9a9a9a;--card:#1b1b1d;--line:#333;--acc:#78a9ff;--bad:#ff8a80;--ok:#6fdc8c}}
@@ -204,7 +259,7 @@ button:disabled{opacity:.6}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0
 th,td{text-align:left;border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:top}th{color:var(--mut);font-weight:600}
 .note{color:var(--mut);font-size:.85rem}
 </style></head><body><main>
-<h1>Bank RAG Guard</h1>
+<h1>AEGIS-Z</h1>
 <p class="sub">A bank assistant that cannot leak what you are not cleared to see. All data is synthetic or public.</p>
 <div class="card">
   <label for="user">Sign in as</label><select id="user"></select>

@@ -11,6 +11,41 @@ export interface AskRequest {
   question: string;
 }
 
+export interface VaultToken {
+  index: number;
+  token_id: string;
+  label: string;
+}
+
+export interface ProposedAction {
+  id: number;
+  action_type: string;
+  title: string;
+  description: string;
+  target_token: string;
+  proposed_by: string;
+  user_tier: number;
+  required_tier: number;
+  provenance_ok: boolean;
+  status: "sandboxed" | "executed" | "blocked_provenance" | "blocked_tier" | string;
+  reason?: string;
+  system?: string;
+  executed_by?: string;
+  receipt?: string;
+  audit_hash?: string;
+}
+
+export interface MosaicState {
+  username: string;
+  risk_score: number;
+  level: "safe" | "elevated" | "critical" | string;
+  turns_in_window: number;
+  entities_tracked: number;
+  sources_touched: number;
+  nodes: string[];
+  advisory?: string;
+}
+
 export interface SourceChunk {
   id: number;
   source: string;
@@ -19,6 +54,7 @@ export interface SourceChunk {
   score: number;
   /** Masked excerpt, truncated to 300 characters by the backend. */
   text: string;
+  vault_tokens?: VaultToken[];
 }
 
 export interface AskResponse {
@@ -35,6 +71,52 @@ export interface AskResponse {
   /** The input guard's short explanation, when the question was blocked. */
   reason?: string | null;
   sources: SourceChunk[];
+  vault_tokens?: VaultToken[];
+  answer_tokens?: VaultToken[];
+  proposed_actions?: ProposedAction[];
+  mosaic?: MosaicState | null;
+}
+
+export interface BreakGlassApproveRequest {
+  token_id: string;
+  requested_by: string;
+  approved_by: string;
+  justification: string;
+}
+
+export interface BreakGlassApproveResponse {
+  request_id: number;
+  token_id: string;
+  label: string;
+  plaintext: string;
+  requested_by: string;
+  approved_by: string;
+  justification: string;
+  status: string;
+  audit_entry_id?: number;
+  audit_hash?: string;
+  hsm_key_id?: string;
+}
+
+export interface FactSheetControl {
+  framework: string;
+  control_id: string;
+  requirement: string;
+  mechanism: string;
+  status: string;
+  evidence: string;
+}
+
+export interface FactSheetResponse {
+  factsheet_id: string;
+  generated_at: string;
+  platform: string;
+  chain_verified: boolean;
+  chain_message: string;
+  chain_head_hash: string;
+  pqc_signature: string;
+  metrics: Record<string, number>;
+  controls: FactSheetControl[];
 }
 
 export interface AuditEntry {

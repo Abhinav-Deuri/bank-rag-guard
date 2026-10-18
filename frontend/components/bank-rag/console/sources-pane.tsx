@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import type { VaultToken } from "@/lib/api/types";
 import { Redacted, type RevealProps } from "./redacted";
 import type { Turn } from "./thread";
 
@@ -20,12 +21,16 @@ export function SourcesPane({
   onCite,
   maxTier,
   reveal,
+  unmaskedMap,
+  onSelectToken,
 }: {
   turn: Turn | null;
   cite: number | null;
   onCite: (n: number) => void;
   maxTier: number;
   reveal?: RevealProps;
+  unmaskedMap?: Record<string, string>;
+  onSelectToken?: (token: VaultToken) => void;
 }) {
   const r = turn?.status === "done" ? turn.response : undefined;
   const sources = r?.sources ?? [];
@@ -84,7 +89,14 @@ export function SourcesPane({
                     match {s.score.toFixed(3)}
                   </span>
                 </button>
-                <Redacted text={s.text} reveal={reveal} className="mt-1 font-doc text-sm leading-[1.75] text-dim" />
+                <Redacted
+                  text={s.text}
+                  reveal={reveal}
+                  vaultTokens={s.vault_tokens}
+                  unmaskedMap={unmaskedMap}
+                  onSelectToken={onSelectToken}
+                  className="mt-1 font-doc text-sm leading-[1.75] text-dim"
+                />
               </li>
             );
           })}

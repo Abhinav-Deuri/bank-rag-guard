@@ -2,9 +2,9 @@
 import hashlib, os, time, requests
 from collections import Counter
 try:
-    from . import audit, masker
+    from . import audit, masker, token_vault
 except (ImportError, ValueError):
-    import audit, masker
+    import audit, masker, token_vault
 
 JINA_URL = "https://api.jina.ai/v1/embeddings"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -86,8 +86,11 @@ def ask_model(question, context):
 
 def answer(conn, username, question, k=5, chunk_filter=None):
     """Run the full chain and return a dictionary with the answer, sources and masking counts."""
+    import re
+    from collections import defaultdict
     role, tier = get_user(conn, username)
-    q_masked, _ = masker.mask_all(question)           # personal data in the question never reaches the model or the log
+    q_masked, q_spans = masker.mask_all(question)           # personal data in the question never reaches the model or the log
+    token_vault.register_spans(conn, question, q_spans)
     audit.append_event(conn, username, "question_received", {"role": role, "tier": tier, "question": q_masked})
 
     chunks = retrieve(conn, q_masked, tier, k)
@@ -102,15 +105,37 @@ def answer(conn, username, question, k=5, chunk_filter=None):
     # and their order, which the audit entry records, so nothing new needs storing.
     mapping = {}
     sources, parts, in_counts = [], [], Counter()
+    all_vault_tokens = []
+    tokens_by_label = defaultdict(list)
     for i, (cid, source, doc_id, content, ctier, score) in enumerate(chunks, 1):
         masked, spans = masker.mask_tokens(content, mapping)
+        c_tokens = token_vault.register_spans(conn, content, spans)
         in_counts.update(label for _, _, label in spans)
         parts.append(f"[Source {i}] {masked[:1200]}")
-        sources.append({"id": cid, "source": source, "tier": ctier, "score": round(float(score), 3), "text": masked})
+        sources.append({"id": cid, "source": source, "tier": ctier, "score": round(float(score), 3), "text": masked, "vault_tokens": c_tokens})
+        for tok in c_tokens:
+            all_vault_tokens.append(tok)
+            tokens_by_label[tok["label"]].append(tok["token_id"])
 
     raw, model = ask_model(q_masked, "\n\n".join(parts))
     final, out_spans = masker.mask_all(raw)            # second safety net on the answer
+    out_tokens = token_vault.register_spans(conn, raw, out_spans)
+    for tok in out_tokens:
+        all_vault_tokens.append(tok)
+        tokens_by_label[tok["label"]].insert(0, tok["token_id"])
     out_counts = Counter(label for _, _, label in out_spans)
+
+    label_cursors = defaultdict(int)
+    answer_tokens = []
+    for idx, m in enumerate(re.finditer(r"\[([A-Z][A-Z0-9_]*)\]", final)):
+        raw_tag = m.group(1)
+        lbl = raw_tag.split("_")[0]
+        candidates = tokens_by_label.get(lbl, [])
+        if candidates:
+            pos = label_cursors[lbl] % len(candidates)
+            chosen_tid = candidates[pos]
+            label_cursors[lbl] += 1
+            answer_tokens.append({"index": idx, "token_id": chosen_tid, "label": lbl})
 
     # The log stores a fingerprint of the answer, never its text, so a reviewer holding the answer can prove it
     # matches what was returned without the log keeping any of it.
@@ -121,4 +146,5 @@ def answer(conn, username, question, k=5, chunk_filter=None):
         "answer_hash": ans_digest, "masked_in_context": dict(in_counts), "masked_in_answer": dict(out_counts)})
     return {"user": username, "tier": tier, "question": question, "answer": final, "sources": sources, "answer_id": answer_id,
             "dropped_passages": dropped, "masked_in_context": dict(in_counts),
-            "masked_in_answer": dict(out_counts), "answer_hash": ans_digest}
+            "masked_in_answer": dict(out_counts), "answer_hash": ans_digest,
+            "vault_tokens": all_vault_tokens, "answer_tokens": answer_tokens}

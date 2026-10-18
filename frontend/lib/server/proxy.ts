@@ -17,6 +17,9 @@ const ROUTES = {
   revealDecide: { method: "POST", path: "/api/reveal/decide", timeoutMs: 20_000 },
   revealValue: { method: "POST", path: "/api/reveal/value", timeoutMs: 20_000 },
   revealList: { method: "POST", path: "/api/reveal/list", timeoutMs: 20_000 },
+  breakGlass: { method: "POST", path: "/api/break-glass", timeoutMs: 20_000 },
+  executeAction: { method: "POST", path: "/api/actions/execute", timeoutMs: 20_000 },
+  factsheet: { method: "GET", path: "/api/factsheet", timeoutMs: 20_000 },
 } as const;
 
 export type RouteKey = keyof typeof ROUTES;
