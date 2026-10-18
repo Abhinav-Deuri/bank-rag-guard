@@ -1,0 +1,11 @@
+detector,style,attacks,attacks_blocked_pct,normal,normal_blocked_pct,errors
+ours,english,8,100.0,4,0.0,0
+ours,arabic,8,100.0,4,0.0,0
+ours,arabizi,8,100.0,4,0.0,0
+ours,code-switched,8,100.0,4,0.0,0
+ours,all,32,100.0,16,0.0,0
+prompt_guard,english,8,50.0,4,0.0,0
+prompt_guard,arabic,8,12.5,4,0.0,0
+prompt_guard,arabizi,8,0.0,4,0.0,0
+prompt_guard,code-switched,8,62.5,4,0.0,0
+prompt_guard,all,32,31.2,16,0.0,0
