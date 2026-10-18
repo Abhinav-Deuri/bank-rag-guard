@@ -381,511 +381,428 @@
 }
 
 /*
-  Workspace and landing theme: VS Code Monokai. Screen #272822, text #f8f8f2, labels cyan #66d9ef,
-  prompts pink #f92672, typed text and questions yellow #e6db74 (Monokai's string colour), OK green
-  #a6e22e, warnings orange #fd971f, numbers purple #ae81ff. Monokai's comment grey (#75715e) is too
-  faint for small text, so "faint" is a lighter grey. Every text colour is >= 4.5:1 on the screen.
+  AEGIS-Z product theme (landing and workspace).
+  A calm, professional security-console look: deep navy surfaces in rounded cards, one blue for actions, and
+  green / amber / red used only for status. The console (conversation and command line) sits in a
+  darker well so it stands apart from the frame. IBM Plex Sans for reading, IBM Plex Mono only for
+  codes, IDs, fingerprints, masked tokens and the command input.
+  Text colours are >= 4.5:1 on every surface they are used on.
 */
 .term {
   color-scheme: dark;
-  --screen: #272822;
-  --ink-950: #272822;
-  --ink-900: #22231e;
-  --ink-850: #3e3d32;
-  --ink-800: #49483e;
-  --line: #5b5c52;
-  --line-soft: #3b3c34;
-  --fg: #f8f8f2;
-  --fg-dim: #cfcfc2;
-  --fg-faint: #a9a99d;
-  --accent: #66d9ef;
-  --accent-strong: #66d9ef;
-  --ok: #a6e22e;
-  --warn: #fd971f;
-  --bad: #f92672;
-  --input: #e6db74;
-  --prompt: #f92672;
-  --string: #e6db74;
-  --number: #ae81ff;
-  --redact: #f8f8f2;
-  --redact-ink: #272822;
-  font-family: "IBM Plex Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
-  font-size: 14px;
+  --screen: #0a0d1c;
+  --well: #060814;
+  --ink-950: #0a0d1c;
+  --ink-900: #11152b;
+  --ink-850: #161b36;
+  --ink-800: #1e2445;
+  --line: #2a3156;
+  --line-soft: #1c2242;
+  --fg: #e9ecf8;
+  --fg-dim: #b4bad6;
+  --fg-faint: #8b92b4;
+  --accent: #8199ff;
+  --accent-strong: #3d5afe;
+  --ok: #3fb950;
+  --warn: #d6a32e;
+  --bad: #ff6b6b;
+  --redact: #c9d1d9;
+  --redact-ink: #0d1117;
+  font-family: "IBM Plex Sans", "IBM Plex Sans Arabic", system-ui, "Segoe UI", sans-serif;
+  font-size: 15px;
   line-height: 1.6;
   background: var(--screen);
 }
+body:has(.term) {
+  background: #0a0d1c;
+}
+.view-plain body:has(.term) {
+  background: #f2f4f8;
+}
 .term .font-doc,
-.term .font-sans,
-.term .font-ledger {
+.term .font-sans {
+  font-family: "IBM Plex Sans", "IBM Plex Sans Arabic", system-ui, sans-serif;
+}
+.term :is(.font-ledger, .num, .mono, code, kbd, .redact-bar) {
   font-family: "IBM Plex Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
 }
-.term :where(button, input, textarea, select) {
-  border-radius: 0;
-}
-.term :where(.rounded, .rounded-sm, .rounded-md, .rounded-lg) {
-  border-radius: 0;
-}
 .term .redact-bar {
-  border-radius: 0;
+  border-radius: 3px;
 }
 .term ::selection {
-  background: #49483e;
+  background: rgba(56, 139, 253, 0.35);
   color: var(--fg);
 }
+.term-well {
+  background: var(--well);
+}
 .term .t-prompt {
-  color: var(--prompt);
-}
-.term .t-string {
-  color: var(--string);
-}
-.term .t-num {
-  color: var(--number);
-}
-/* A titled box, like an ISPF panel: the title sits in the top border. */
-.term-box {
-  position: relative;
-  border: 1px solid var(--line);
-}
-.term-box > .term-box-title {
-  position: absolute;
-  top: -0.8em;
-  inset-inline-start: 1ch;
-  padding-inline: 1ch;
-  background: var(--screen);
-  color: var(--accent);
-}
-.term-cursor {
-  display: inline-block;
-  width: 1ch;
-  height: 1.15em;
-  vertical-align: text-bottom;
-  background: var(--input);
-  animation: term-blink 1.06s steps(1) infinite;
-}
-@keyframes term-blink {
-  50% {
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .term-cursor {
-    animation: none;
-  }
-}
-.term-aside h2 {
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 400;
-}
-.term-aside section {
-  border-color: var(--line-soft);
-}
-/* Trace lines appear one after another when an answer arrives. */
-.term-line-in {
-  animation: term-line-in 0.24s var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 70ms);
-}
-@keyframes term-line-in {
-  from {
-    opacity: 0;
-    transform: translateX(-0.5ch);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .term-line-in {
-    animation: none;
-  }
-}
-/* Audit rows written by the latest action are marked until the next one. */
-.term-new > td {
-  background: var(--ink-850);
-}
-.term-new > td:first-child {
-  box-shadow: inset 2px 0 0 var(--accent);
-  padding-inline-start: 0.6rem;
-}
-/* Landing: the session replay plays once, line by line. */
-.term-replay {
-  animation: term-line-in 0.3s var(--ease-out) both;
-  animation-delay: calc(0.3s + var(--i, 0) * 0.22s);
-}
-@media (prefers-reduced-motion: reduce) {
-  .term-replay {
-    animation: none;
-  }
-}
-
-
-/* ---------- Block cursor (TermCursor) ---------- */
-.has-term-cursor,
-.has-term-cursor * {
-  cursor: none;
-}
-.has-term-cursor :is(input, textarea, select, [contenteditable="true"]) {
-  cursor: text;
-}
-.term-pointer {
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 9999;
-  pointer-events: none;
-  background: #fff;
-  mix-blend-mode: difference;
-  opacity: 0;
-  transition: opacity 0.15s;
-  will-change: transform;
-}
-.term-pointer[data-on="1"] {
-  opacity: 1;
-}
-.term-pointer[data-hidden="1"] {
-  opacity: 0;
-}
-.term-pointer[data-rest="1"]:not([data-over="1"]) {
-  animation: term-blink 1.06s steps(1) infinite;
-}
-.term-pointer[data-down="1"] {
-  background: #9ff0a6;
-}
-@media (prefers-reduced-motion: reduce) {
-  .term-pointer {
-    transition: none;
-  }
-}
-
-/* ---------- Landing motion ---------- */
-/* The headline paints left to right, as a terminal screen fills in. */
-.term-paint {
-  animation: term-paint 0.01s linear both;
-  animation-delay: calc(0.25s + var(--c, 0) * 28ms);
-}
-@keyframes term-paint {
-  from {
-    opacity: 0;
-  }
-}
-/* The replay starts once the headline is on screen. */
-.term-replay {
-  animation-delay: calc(1.45s + var(--i, 0) * 0.2s);
-}
-/* Steps boot as they scroll into view: [ .. ] becomes [ OK ]. Without JS (or with reduced motion)
-   they show [ OK ] straight away. */
-.boot-tag::before {
-  content: "[ OK ]";
-  color: var(--ok);
-}
-[data-boot][data-armed="1"]:not([data-on="1"]) .boot-tag::before {
-  content: "[ .. ]";
   color: var(--fg-faint);
 }
-[data-boot][data-armed="1"] .boot-row {
-  transition: opacity 0.3s var(--ease-out);
-  transition-delay: calc(var(--i, 0) * 110ms);
+.term .t-string {
+  color: var(--fg);
 }
-[data-boot][data-armed="1"]:not([data-on="1"]) .boot-row {
-  opacity: 0.35;
+.term .t-num {
+  color: var(--fg-faint);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
 }
-[data-boot][data-on="1"] .boot-tag::before {
-  animation: boot-tag 0.01s steps(1) both;
-  animation-delay: calc(0.2s + var(--i, 0) * 110ms);
-}
-@keyframes boot-tag {
-  from {
-    content: "[ .. ]";
+
+/* Panels on the landing page. */
+/* Component classes sit in a layer so Tailwind utilities on the same element (hidden, px-5, gap) win. */
+@layer components {
+  .term-box {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--ink-900);
+    padding: 1rem 1.25rem 1.1rem;
+  }
+  .term-box > .term-box-title {
+    display: block;
+    margin-bottom: 0.6rem;
+    font-size: 13px;
+    font-weight: 500;
     color: var(--fg-faint);
   }
-}
-@media (prefers-reduced-motion: reduce) {
-  .term-paint,
-  .term-replay,
-  [data-boot][data-on="1"] .boot-tag::before {
-    animation: none;
+  
+  /* ---------- Buttons ----------
+     Quiet by default: secondary actions are text buttons with a hover background, not boxes.
+     One filled button marks the main action of a screen. Toggles show their state with a fill. */
+  .term-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    color: var(--fg-dim);
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color 0.12s, color 0.12s;
   }
-}
-
-/* ---------- Workspace start-up ---------- */
-/* The screen powers on like a CRT: a bright line that opens to full height. */
-.boot-screen > * {
-  animation: crt-on 0.62s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  transform-origin: center;
-}
-@keyframes crt-on {
-  0% {
-    transform: scale(0.2, 0.003);
-    filter: brightness(6);
-    opacity: 0.2;
+  .term-key:hover {
+    background: var(--ink-850);
+    color: var(--fg);
   }
-  35% {
-    transform: scale(1, 0.006);
-    filter: brightness(4);
+  .term-key[aria-pressed="true"],
+  .term-key[aria-expanded="true"] {
+    background: var(--ink-800);
+    color: var(--fg);
+  }
+  .term-key:disabled {
+    opacity: 0.45;
+    background: transparent;
+  }
+  .term-key-primary,
+  .term-key-primary:hover {
+    background: var(--accent-strong);
+    color: #ffffff;
+  }
+  .term-key-primary:hover {
+    background: #388bfd;
+  }
+  .term-key-primary:disabled {
+    background: var(--ink-800);
+    color: var(--fg-faint);
     opacity: 1;
   }
-  70% {
-    transform: scale(1, 1.04);
-    filter: brightness(1.4);
+  /* An action written as a link: blue text, underline on hover. */
+  .term-link {
+    color: var(--accent);
+    font-weight: 500;
+    text-align: start;
   }
-  100% {
-    transform: scale(1, 1);
-    filter: none;
+  .term-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
   }
-}
-.boot-line {
-  animation: term-line-in 0.22s var(--ease-out) both;
-}
-.boot-wait {
-  animation: term-blink 0.8s steps(1) infinite;
-}
-.boot-leaving {
-  animation: boot-out 0.32s ease-in both;
-}
-@keyframes boot-out {
-  to {
-    opacity: 0;
-    filter: brightness(1.8);
+  /* Source numbers in answers. */
+  .term-chip {
+    display: inline-block;
+    min-width: 1.35em;
+    padding: 0 0.3em;
+    border-radius: 4px;
+    background: rgba(56, 139, 253, 0.15);
+    color: var(--accent);
+    font-size: 0.8em;
+    font-weight: 600;
+    line-height: 1.5;
+    text-align: center;
+    vertical-align: 0.1em;
   }
-}
-@media (prefers-reduced-motion: reduce) {
-  .boot-screen > *,
-  .boot-line,
-  .boot-wait,
-  .boot-leaving {
-    animation: none;
+  .term-chip:hover,
+  .term-chip[aria-pressed="true"] {
+    background: var(--accent-strong);
+    color: #ffffff;
   }
-}
-.boot-banner {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: min(15px, calc((100vw - 40px) / 30));
-  line-height: 1;
+  /* Rows that open to show more: separators, a chevron, a hover background. */
+  .term-row {
+    display: flex;
+    width: 100%;
+    align-items: baseline;
+    gap: 0.75ch;
+    padding: 0.45rem 0.5rem;
+    border-radius: 6px;
+    text-align: start;
+  }
+  .term-row:hover {
+    background: var(--ink-850);
+  }
+  .term-row[aria-expanded="true"] {
+    background: var(--ink-850);
+  }
+  .term-row-mark::before {
+    content: "";
+    display: inline-block;
+    width: 0.42em;
+    height: 0.42em;
+    border-right: 1.5px solid var(--fg-faint);
+    border-bottom: 1.5px solid var(--fg-faint);
+    transform: translateY(-0.1em) rotate(-45deg);
+    transition: transform 0.15s;
+  }
+  .term-row[aria-expanded="true"] .term-row-mark::before,
+  .term-details[open] > summary .term-row-mark::before {
+    transform: translateY(-0.2em) rotate(45deg);
+  }
+  .term-details > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  .term-details > summary::-webkit-details-marker {
+    display: none;
+  }
+  .term-details[open] > summary.term-row {
+    background: var(--ink-850);
+  }
+  /* Safeguard status: a coloured dot and a few words. */
+  .term-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+    font-size: 13px;
+    color: var(--fg-dim);
+  }
+  .term-stat::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--fg-faint);
+  }
+  .term-stat[data-s="ok"]::before {
+    background: var(--ok);
+  }
+  .term-stat[data-s="warn"] {
+    color: var(--warn);
+  }
+  .term-stat[data-s="warn"]::before {
+    background: var(--warn);
+  }
+  .term-stat[data-s="fail"] {
+    color: var(--bad);
+    font-weight: 500;
+  }
+  .term-stat[data-s="fail"]::before {
+    background: var(--bad);
+  }
+  /* Redaction bars that can be requested. */
+  .term button.redact-bar {
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .term button.redact-bar:hover {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
 }
 
-/* Start-up screen: shown once per browser. The root layout's inline script adds .boot-seen before
-   the first paint on later visits, so it never flashes. */
-.boot-seen .boot-screen {
-  display: none;
+/* Workspace sidebar and stat cards. */
+.side-card {
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--ink-900);
+}
+.side-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  color: var(--fg-dim);
+  text-align: start;
+  font-size: 14px;
+  cursor: pointer;
+}
+.side-item:hover {
+  background: var(--ink-850);
+  color: var(--fg);
+}
+.side-item[aria-current="page"],
+.side-item[aria-pressed="true"] {
+  background: var(--ink-800);
+  color: var(--fg);
+}
+.side-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--fg-faint);
+}
+.side-item[aria-current="page"] svg,
+.side-item[aria-pressed="true"] svg {
+  color: var(--accent);
+}
+.side-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.stat-card {
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--ink-900);
+  padding: 0.8rem 1rem 0.85rem;
+  text-align: start;
+}
+button.stat-card:hover {
+  border-color: var(--line);
+}
+.console-card {
+  border-color: var(--line);
 }
 
-/* ---------- Keyboard focus: always visible in the terminal theme ---------- */
+kbd {
+  display: inline-block;
+  padding: 0 0.35em;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--fg-dim);
+}
+
+/* ---------- Keyboard focus ---------- */
 .term :focus {
   outline: none;
 }
 .term :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+  border-radius: 6px;
 }
-.term .term-key:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-/* The command line is a boxed field; focus brightens its border instead of drawing an outline
-   that would overlap the "Command ===>" label. */
 .term #command {
   border: 1px solid var(--line);
-  padding: 0.15rem 0.8ch;
-  color: var(--input);
-  caret-color: var(--input);
+  border-radius: 6px;
+  background: var(--ink-900);
+  padding: 0.4rem 0.75rem;
+  color: var(--fg);
+  caret-color: var(--accent);
 }
 .term #command:focus,
 .term #command:focus-visible {
   outline: none;
   border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.25);
 }
 
-
-/* ---------- Plain reading view ----------
-   A light page for long reading in bright offices. Only the reading text (answers, passages,
-   explanations) changes to proportional type; sizes, spacing and the interface itself stay the same,
-   so switching views never moves anything. Colours from the site's contrast-checked light theme. */
-.view-plain .term:not(.boot-screen) {
-  color-scheme: light;
-  --screen: #fbfbf8;
-  --ink-950: #fbfbf8;
-  --ink-900: #f4f4ef;
-  --ink-850: #ebebe3;
-  --ink-800: #dedfd6;
-  --line: #b9baae;
-  --line-soft: #dedfd6;
-  --fg: #23241f;
-  --fg-dim: #45463e;
-  --fg-faint: #63645a;
-  --accent: #0b6e8a;
-  --accent-strong: #0b6e8a;
-  --ok: #3d6b0b;
-  --warn: #9a4f00;
-  --bad: #b5154f;
-  --input: #6b5d00;
-  --prompt: #b5154f;
-  --string: #6b5d00;
-  --number: #6a3fc7;
-  --redact: #23241f;
-  --redact-ink: #f4f4ef;
+/* ---------- Motion (all off with reduced motion) ---------- */
+.term-line-in {
+  animation: term-fade 0.2s ease-out both;
+  animation-delay: calc(var(--i, 0) * 40ms);
 }
-.view-plain .term:not(.boot-screen) :is(.term-answer, .term-read) {
-  font-family: "Source Serif 4 Variable", "Readex Pro Variable", Georgia, serif;
+.term-replay {
+  animation: term-fade 0.35s ease-out both;
+  animation-delay: calc(0.2s + var(--i, 0) * 0.12s);
 }
-.view-plain .term:not(.boot-screen) .term-answer {
-  font-size: 15.5px;
+@keyframes term-fade {
+  from {
+    opacity: 0;
+  }
 }
-/* Only one of each pair of labels shows, depending on the view. */
-.view-plain .when-terminal,
-html:not(.view-plain) .when-plain {
-  display: none;
-}
-
-
-/* ---------- Clickable things: always a visible box ---------- */
-.term-key {
-  display: inline-block;
-  border: 1px solid var(--line);
-  padding: 0 0.75ch;
-  line-height: 1.6;
-  color: var(--fg);
-  background: transparent;
-  white-space: nowrap;
-  text-align: start;
-  transition: border-color 0.12s, color 0.12s, background-color 0.12s;
-}
-.term-key:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.term-key[aria-pressed="true"],
-.term-key[aria-expanded="true"],
-.term-key.is-on {
-  border-color: var(--fg);
-  background: var(--fg);
-  color: var(--screen);
-}
-.term-key-primary {
-  border-color: var(--ok);
-  background: var(--ok);
-  color: var(--screen);
-}
-.term-key-primary:hover {
-  border-color: var(--string);
-  background: var(--string);
-  color: var(--screen);
-}
-.term-key:disabled {
-  opacity: 0.45;
-  border-color: var(--line-soft);
-  color: var(--fg-dim);
-  background: transparent;
-}
-/* Small box for links inside text (source numbers, "open"). */
-.term-chip {
-  display: inline-block;
-  border: 1px solid var(--line);
-  padding: 0 0.45ch;
-  line-height: 1.35;
-  color: var(--fg);
-}
-.term-chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.term-chip[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--screen);
-}
-/* A row that opens to show more: the whole row is the box. */
-.term-row {
-  display: flex;
-  width: 100%;
-  align-items: baseline;
-  gap: 1ch;
-  border: 1px solid var(--line-soft);
-  padding: 0.3rem 0.8ch;
-  text-align: start;
-}
-.term-row:hover {
-  border-color: var(--accent);
-}
-.term-row[aria-expanded="true"] {
-  border-color: var(--line);
-  background: var(--ink-850);
-}
-.term-row .term-row-mark::before {
-  content: "+";
-  color: var(--accent);
-}
-.term-row[aria-expanded="true"] .term-row-mark::before {
-  content: "\2212";
-}
-/* Status chips in the safeguard strip under each answer. */
-.term-stat {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.6ch;
-  border: 1px solid var(--line-soft);
-  padding: 0 0.7ch;
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--fg-dim);
-}
-.term-stat::before {
-  content: "";
-  width: 0.55em;
-  height: 0.55em;
-  align-self: center;
-  background: currentColor;
-}
-.term-stat[data-s="ok"]::before {
-  background: var(--ok);
-}
-.term-stat[data-s="warn"] {
-  border-color: var(--warn);
-}
-.term-stat[data-s="warn"]::before {
-  background: var(--warn);
-}
-.term-stat[data-s="fail"] {
-  border-color: var(--bad);
-  color: var(--fg);
-}
-.term-stat[data-s="fail"]::before {
-  background: var(--bad);
-}
-.term-stat[data-s="skip"]::before {
-  background: var(--fg-faint);
-}
-/* Redaction bars that can be requested are outlined in the label colour. */
-.term button.redact-bar {
-  outline: 1px dashed var(--accent);
-  outline-offset: 1px;
-}
-/* <details> rows (landing): the summary is the boxed row; no browser triangle. */
-.term-details > summary {
-  list-style: none;
-  cursor: pointer;
-}
-.term-details > summary::-webkit-details-marker {
-  display: none;
-}
-.term-details[open] > summary.term-row {
-  border-color: var(--line);
-  background: var(--ink-850);
-}
-.term-details[open] > summary .term-row-mark::before {
-  content: "\2212";
-}
-/* The side tray slides in from the right when it opens. */
 @media (min-width: 1024px) {
   .term-tray {
-    animation: tray-in 0.22s var(--ease-out) both;
+    animation: tray-in 0.2s ease-out both;
   }
 }
 @keyframes tray-in {
   from {
-    transform: translateX(24px);
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+/* Audit rows written by the latest action. */
+.term-new > td {
+  background: rgba(56, 139, 253, 0.08);
+}
+
+/* ---------- Start-up checks ---------- */
+.boot-seen .boot-screen {
+  display: none;
+}
+.boot-screen {
+  animation: term-fade 0.2s ease-out both;
+}
+.boot-line {
+  animation: term-fade 0.2s ease-out both;
+}
+.boot-wait {
+  animation: boot-pulse 1s ease-in-out infinite;
+}
+@keyframes boot-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+.boot-leaving {
+  animation: boot-out 0.25s ease-in both;
+}
+@keyframes boot-out {
+  to {
     opacity: 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .term-tray {
+  .term-line-in,
+  .term-replay,
+  .term-tray,
+  .boot-screen,
+  .boot-line,
+  .boot-wait,
+  .boot-leaving {
     animation: none;
   }
+  .term-row-mark::before {
+    transition: none;
+  }
+}
+
+/* ---------- Plain view: the same screen, light ---------- */
+.view-plain .term:not(.boot-screen) {
+  color-scheme: light;
+  --screen: #f2f4f8;
+  --well: #ffffff;
+  --ink-950: #f2f4f8;
+  --ink-900: #ffffff;
+  --ink-850: #eef1f6;
+  --ink-800: #e3e8f0;
+  --line: #d0d7de;
+  --line-soft: #e6eaef;
+  --fg: #1f2328;
+  --fg-dim: #424a53;
+  --fg-faint: #59636e;
+  --accent: #0969da;
+  --accent-strong: #0969da;
+  --ok: #1a7f37;
+  --warn: #9a6700;
+  --bad: #cf222e;
+  --redact: #1f2328;
+  --redact-ink: #f6f8fa;
+}
+.view-plain .term:not(.boot-screen) .term-chip {
+  background: rgba(9, 105, 218, 0.1);
+}
+.view-plain .term:not(.boot-screen) .term-new > td {
+  background: rgba(9, 105, 218, 0.06);
+}
+.view-plain .when-terminal,
+html:not(.view-plain) .when-plain {
+  display: none;
 }

@@ -59,7 +59,7 @@ interface Step {
   hint?: string;
 }
 
-const TAG: Record<Status, string> = { ok: "[ OK ]", fail: "[FAIL]", warn: "[WARN]", skip: "[SKIP]" };
+const TAG: Record<Status, string> = { ok: "Passed", fail: "Blocked", warn: "Flagged", skip: "Skipped" };
 const TONE: Record<Status, string> = { ok: "text-ok", fail: "text-bad", warn: "text-warn", skip: "text-faint" };
 
 const MOSAIC_HINT =
@@ -155,19 +155,19 @@ export function stepsFor(r: AskResponse, maxTier: number): Step[] {
 
 function Trace({ steps, animate }: { steps: Step[]; animate: boolean }) {
   return (
-    <ol className="mt-2 text-[13px]" aria-label="What each safeguard did">
+    <ol className="mt-3 space-y-0.5 rounded-md border border-line-soft bg-panel px-3 py-2 text-[13px]" aria-label="What each safeguard did">
       {steps.map((s, i) => (
         <li
           key={s.stage}
-          className={cn("grid grid-cols-[7ch_17ch_1fr] gap-x-1 max-sm:grid-cols-[7ch_1fr]", animate && "term-line-in")}
+          className={cn("grid grid-cols-[9ch_17ch_1fr] gap-x-2 max-sm:grid-cols-[9ch_1fr]", animate && "term-line-in")}
           style={animate ? ({ "--i": i } as CSSProperties) : undefined}
         >
-          <span className={cn("whitespace-pre", TONE[s.status])}>{TAG[s.status]}</span>
-          <span className="text-accent max-sm:hidden" title={s.hint}>
+          <span className={cn("font-medium", TONE[s.status])}>{TAG[s.status]}</span>
+          <span className="text-fg max-sm:hidden" title={s.hint}>
             {s.stage}
           </span>
           <span className={s.status === "skip" ? "text-faint" : "text-dim"}>
-            <span className="text-accent sm:hidden">{s.stage}: </span>
+            <span className="text-fg sm:hidden">{s.stage}: </span>
             {s.detail}
           </span>
         </li>
@@ -176,11 +176,13 @@ function Trace({ steps, animate }: { steps: Step[]; animate: boolean }) {
   );
 }
 
-/** The safeguards as a row of small status boxes, with a button that opens the full trace. */
+/** Under each answer: only what the person needs to act on (a block, a withheld passage, a review
+ * alert), and a link that opens the full list of safeguard steps. */
 function Strip({ steps, open, onToggle }: { steps: Step[]; open: boolean; onToggle: () => void }) {
+  const issues = steps.filter((s) => s.status === "fail" || s.status === "warn");
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="What the safeguards did">
-      {steps.map((s) => (
+    <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5" aria-label="What the safeguards did">
+      {issues.map((s) => (
         <span key={s.stage} className="term-stat" data-s={s.status} title={`${s.stage}: ${s.detail}${s.hint ? `. ${s.hint}` : ""}`}>
           {s.short}
         </span>
@@ -192,9 +194,9 @@ function Strip({ steps, open, onToggle }: { steps: Step[]; open: boolean; onTogg
           e.stopPropagation();
           onToggle();
         }}
-        className="term-key text-[13px]"
+        className="term-link text-[13px]"
       >
-        {open ? "Hide details" : "Details"}
+        {open ? "Hide security checks" : "Security checks"}
       </button>
     </div>
   );
@@ -204,13 +206,13 @@ function Pending({ turn, onStop }: { turn: Turn; onStop: () => void }) {
   const seconds = useElapsed(turn.startedAt);
   return (
     <div className="mt-2 text-[13px]">
-      <p role="status" className="grid grid-cols-[7ch_1fr] gap-x-1">
-        <span className="text-accent">[ .. ]</span>
+      <p role="status" className="grid grid-cols-[9ch_1fr] gap-x-2">
+        <span className="boot-wait font-medium text-accent">Working</span>
         <span className="text-dim">
           Checking the question, then searching {tierRange(turn.tier)} and masking what it finds.{" "}
           <span className="num text-fg">{seconds} s</span>
           <span className="text-faint"> (usually 10 to 40)</span>
-          <button type="button" onClick={onStop} className="term-key ms-3">
+          <button type="button" onClick={onStop} className="term-link ms-3">
             Stop waiting
           </button>
         </span>
@@ -243,7 +245,7 @@ function Answer({
         </span>{" "}
         <span className="text-dim">{turn.error.message}</span>
         {retry && (
-          <button type="button" onClick={onRetry} className="term-key ms-2">
+          <button type="button" onClick={onRetry} className="term-link ms-2">
             Ask again
           </button>
         )}
@@ -282,8 +284,8 @@ function Answer({
 function Next({ steps }: { steps: NextStep[] }) {
   if (!steps.length) return null;
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]">
-      <span className="text-faint">Next</span>
+    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-line-soft pt-3 text-[14px]">
+      <span className="text-[13px] text-faint">Next</span>
       {steps.map((s) => (
         <button
           key={s.label}
@@ -292,7 +294,7 @@ function Next({ steps }: { steps: NextStep[] }) {
             e.stopPropagation();
             s.run();
           }}
-          className="term-key"
+          className="term-link"
         >
           {s.label}
         </button>
@@ -344,9 +346,9 @@ export function Thread({
         if (turn.status === "note") {
           return (
             <li key={turn.key}>
-              <article className="border-b border-line-soft py-3">
+              <article className="mb-3 px-1 py-2">
                 <p>
-                  <span className="t-prompt">Command ===&gt;</span> <span className="t-string">{turn.question}</span>
+                  <span className="mono text-faint">›</span> <span className="mono text-fg">{turn.question}</span>
                 </p>
                 {turn.note}
               </article>
@@ -356,8 +358,7 @@ export function Thread({
         const active = turn.key === activeKey;
         const latest = turn.key === lastAsked?.key;
         const steps = turn.response ? stepsFor(turn.response, maxTier) : null;
-        const flagged = Boolean(steps?.some((s) => s.status === "warn" || s.status === "fail"));
-        const open = choice[turn.key] ?? (latest && flagged);
+        const open = choice[turn.key] ?? false;
         return (
           <li key={turn.key}>
             <article
@@ -365,8 +366,8 @@ export function Thread({
               onClick={() => onSelect(turn.key)}
               aria-current={active ? "true" : undefined}
               className={cn(
-                "-mx-3 border-b border-s-2 border-line-soft px-3 py-3.5 sm:-mx-5 sm:px-5",
-                active ? "border-s-accent bg-raised" : "cursor-pointer border-s-transparent hover:bg-raised/60",
+                "mb-3 rounded-lg border px-5 py-4",
+                active ? "border-line bg-panel" : "cursor-pointer border-line-soft hover:border-line",
               )}
             >
               <p className="num text-[13px] text-faint">
@@ -375,11 +376,8 @@ export function Thread({
                   {turn.username}, reads {tierRange(turn.tier)}
                 </span>
               </p>
-              <h2 className="mt-0.5 max-w-[76ch] font-normal text-fg [text-wrap:pretty]">
-                <span className="t-prompt">{turn.username} ===&gt;</span>{" "}
-                <span dir="auto" className="t-string">
-                  {turn.question}
-                </span>
+              <h2 className="mt-1 max-w-[76ch] text-[17px] font-semibold leading-snug text-fg [text-wrap:pretty]">
+                <span dir="auto">{turn.question}</span>
               </h2>
               {turn.status === "pending" && <Pending turn={turn} onStop={onStop} />}
               {steps && (
