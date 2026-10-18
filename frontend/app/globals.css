@@ -381,32 +381,34 @@
 }
 
 /*
-  Workspace terminal theme, after the IBM 3279 colour display used with ISPF on IBM Z:
-  black screen, turquoise for protected labels, green for the input field, yellow for
-  warnings, red for errors, white for intensified data, and reverse video for highlighted
-  fields (here: the current user and removed personal data). Dark only, whatever the site theme.
-  Every text colour below is >= 7:1 on black.
+  Workspace and landing theme: VS Code Monokai. Screen #272822, text #f8f8f2, labels cyan #66d9ef,
+  prompts pink #f92672, typed text and questions yellow #e6db74 (Monokai's string colour), OK green
+  #a6e22e, warnings orange #fd971f, numbers purple #ae81ff. Monokai's comment grey (#75715e) is too
+  faint for small text, so "faint" is a lighter grey. Every text colour is >= 4.5:1 on the screen.
 */
 .term {
   color-scheme: dark;
-  --ink-950: #000000;
-  --ink-900: #000000;
-  --ink-850: #0b1a20;
-  --ink-800: #12262e;
-  --line: #2f5866;
-  --line-soft: #1b3740;
-  --fg: #e6ebe4;
-  --fg-dim: #b3bfb8;
-  --fg-faint: #8d9c98;
-  --accent: #62d3e3;
-  --accent-strong: #62d3e3;
-  --ok: #86e08f;
-  --warn: #f2d468;
-  --bad: #ff7b7b;
-  --input: #86e08f;
-  --redact: #e6ebe4;
-  --redact-ink: #000000;
-  --screen: #000000;
+  --screen: #272822;
+  --ink-950: #272822;
+  --ink-900: #22231e;
+  --ink-850: #3e3d32;
+  --ink-800: #49483e;
+  --line: #5b5c52;
+  --line-soft: #3b3c34;
+  --fg: #f8f8f2;
+  --fg-dim: #cfcfc2;
+  --fg-faint: #a9a99d;
+  --accent: #66d9ef;
+  --accent-strong: #66d9ef;
+  --ok: #a6e22e;
+  --warn: #fd971f;
+  --bad: #f92672;
+  --input: #e6db74;
+  --prompt: #f92672;
+  --string: #e6db74;
+  --number: #ae81ff;
+  --redact: #f8f8f2;
+  --redact-ink: #272822;
   font-family: "IBM Plex Mono", "IBM Plex Sans Arabic", ui-monospace, monospace;
   font-size: 14px;
   line-height: 1.6;
@@ -427,8 +429,17 @@
   border-radius: 0;
 }
 .term ::selection {
-  background: var(--accent);
-  color: var(--screen);
+  background: #49483e;
+  color: var(--fg);
+}
+.term .t-prompt {
+  color: var(--prompt);
+}
+.term .t-string {
+  color: var(--string);
+}
+.term .t-num {
+  color: var(--number);
 }
 /* A titled box, like an ISPF panel: the title sits in the top border. */
 .term-box {
@@ -480,35 +491,7 @@
     transform: translateX(-0.5ch);
   }
 }
-/* A text-mode button: [ Label ]. */
-.term-key {
-  color: var(--fg);
-  white-space: nowrap;
-}
-.term-key::before {
-  content: "[ ";
-  color: var(--accent);
-}
-.term-key::after {
-  content: " ]";
-  color: var(--accent);
-}
-.term-key:hover,
-.term-key:focus-visible {
-  background: var(--fg);
-  color: var(--screen);
-  outline: none;
-}
-.term-key:hover::before,
-.term-key:hover::after,
-.term-key:focus-visible::before,
-.term-key:focus-visible::after {
-  color: var(--screen);
-}
-.term-key:disabled {
-  color: var(--fg-faint);
-  background: none;
-}
+
 @media (prefers-reduced-motion: reduce) {
   .term-line-in {
     animation: none;
@@ -532,20 +515,7 @@
     animation: none;
   }
 }
-/* The main call to action: a highlighted (reverse video) field. */
-.term-key-primary {
-  background: var(--fg);
-  color: var(--screen);
-  padding-inline: 0.25ch;
-}
-.term-key-primary::before,
-.term-key-primary::after {
-  color: var(--screen);
-}
-.term-key-primary:hover,
-.term-key-primary:focus-visible {
-  background: var(--ok);
-}
+
 
 /* ---------- Block cursor (TermCursor) ---------- */
 .has-term-cursor,
@@ -722,58 +692,197 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
-/* The command line shows focus by its underline turning bright and thick, plus the outline. */
+/* The command line is a boxed field; focus brightens its border instead of drawing an outline
+   that would overlap the "Command ===>" label. */
+.term #command {
+  border: 1px solid var(--line);
+  padding: 0.15rem 0.8ch;
+  color: var(--input);
+  caret-color: var(--input);
+}
+.term #command:focus,
 .term #command:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-  border-bottom-color: var(--ok);
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
+
 /* ---------- Plain reading view ----------
-   The same workspace on a light page with proportional type, for long reading in bright offices.
-   Colours are the site's light theme, already checked for >= 4.5:1 text contrast. */
+   A light page for long reading in bright offices. Only the reading text (answers, passages,
+   explanations) changes to proportional type; sizes, spacing and the interface itself stay the same,
+   so switching views never moves anything. Colours from the site's contrast-checked light theme. */
 .view-plain .term:not(.boot-screen) {
   color-scheme: light;
-  --screen: #fcfdff;
-  --ink-950: #fcfdff;
-  --ink-900: #fcfdff;
-  --ink-850: #edf2f9;
-  --ink-800: #dfe7f2;
-  --line: oklch(0.8 0.02 255);
-  --line-soft: oklch(0.89 0.014 255);
-  --fg: oklch(0.2 0.035 258);
-  --fg-dim: oklch(0.38 0.035 258);
-  --fg-faint: oklch(0.5 0.03 258);
-  --accent: oklch(0.47 0.17 240);
-  --accent-strong: oklch(0.44 0.19 258);
-  --ok: oklch(0.45 0.13 156);
-  --warn: oklch(0.5 0.12 68);
-  --bad: oklch(0.5 0.19 25);
-  --input: oklch(0.45 0.13 156);
-  --redact: #0c1626;
-  --redact-ink: #e3e9f1;
-  font-family: "Readex Pro Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
-  font-size: 15px;
+  --screen: #fbfbf8;
+  --ink-950: #fbfbf8;
+  --ink-900: #f4f4ef;
+  --ink-850: #ebebe3;
+  --ink-800: #dedfd6;
+  --line: #b9baae;
+  --line-soft: #dedfd6;
+  --fg: #23241f;
+  --fg-dim: #45463e;
+  --fg-faint: #63645a;
+  --accent: #0b6e8a;
+  --accent-strong: #0b6e8a;
+  --ok: #3d6b0b;
+  --warn: #9a4f00;
+  --bad: #b5154f;
+  --input: #6b5d00;
+  --prompt: #b5154f;
+  --string: #6b5d00;
+  --number: #6a3fc7;
+  --redact: #23241f;
+  --redact-ink: #f4f4ef;
 }
-.view-plain .term:not(.boot-screen) .font-doc,
-.view-plain .term:not(.boot-screen) .term-answer {
+.view-plain .term:not(.boot-screen) :is(.term-answer, .term-read) {
   font-family: "Source Serif 4 Variable", "Readex Pro Variable", Georgia, serif;
-  font-size: 16.5px;
-  line-height: 1.7;
 }
-.view-plain .term:not(.boot-screen) .font-sans {
-  font-family: "Readex Pro Variable", ui-sans-serif, system-ui, sans-serif;
-}
-/* Codes, fingerprints and the command line stay monospaced. */
-.view-plain .term:not(.boot-screen) :is(.font-ledger, .num, #command, .redact-bar) {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-}
-.view-plain .has-term-cursor,
-.view-plain .has-term-cursor * {
-  cursor: auto;
+.view-plain .term:not(.boot-screen) .term-answer {
+  font-size: 15.5px;
 }
 /* Only one of each pair of labels shows, depending on the view. */
 .view-plain .when-terminal,
 html:not(.view-plain) .when-plain {
   display: none;
+}
+
+
+/* ---------- Clickable things: always a visible box ---------- */
+.term-key {
+  display: inline-block;
+  border: 1px solid var(--line);
+  padding: 0 0.75ch;
+  line-height: 1.6;
+  color: var(--fg);
+  background: transparent;
+  white-space: nowrap;
+  text-align: start;
+  transition: border-color 0.12s, color 0.12s, background-color 0.12s;
+}
+.term-key:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.term-key[aria-pressed="true"],
+.term-key[aria-expanded="true"],
+.term-key.is-on {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--screen);
+}
+.term-key-primary {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: var(--screen);
+}
+.term-key-primary:hover {
+  border-color: var(--string);
+  background: var(--string);
+  color: var(--screen);
+}
+.term-key:disabled {
+  opacity: 0.45;
+  border-color: var(--line-soft);
+  color: var(--fg-dim);
+  background: transparent;
+}
+/* Small box for links inside text (source numbers, "open"). */
+.term-chip {
+  display: inline-block;
+  border: 1px solid var(--line);
+  padding: 0 0.45ch;
+  line-height: 1.35;
+  color: var(--fg);
+}
+.term-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.term-chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--screen);
+}
+/* A row that opens to show more: the whole row is the box. */
+.term-row {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  gap: 1ch;
+  border: 1px solid var(--line-soft);
+  padding: 0.3rem 0.8ch;
+  text-align: start;
+}
+.term-row:hover {
+  border-color: var(--accent);
+}
+.term-row[aria-expanded="true"] {
+  border-color: var(--line);
+  background: var(--ink-850);
+}
+.term-row .term-row-mark::before {
+  content: "+";
+  color: var(--accent);
+}
+.term-row[aria-expanded="true"] .term-row-mark::before {
+  content: "\2212";
+}
+/* Status chips in the safeguard strip under each answer. */
+.term-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6ch;
+  border: 1px solid var(--line-soft);
+  padding: 0 0.7ch;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--fg-dim);
+}
+.term-stat::before {
+  content: "";
+  width: 0.55em;
+  height: 0.55em;
+  align-self: center;
+  background: currentColor;
+}
+.term-stat[data-s="ok"]::before {
+  background: var(--ok);
+}
+.term-stat[data-s="warn"] {
+  border-color: var(--warn);
+}
+.term-stat[data-s="warn"]::before {
+  background: var(--warn);
+}
+.term-stat[data-s="fail"] {
+  border-color: var(--bad);
+  color: var(--fg);
+}
+.term-stat[data-s="fail"]::before {
+  background: var(--bad);
+}
+.term-stat[data-s="skip"]::before {
+  background: var(--fg-faint);
+}
+/* Redaction bars that can be requested are outlined in the label colour. */
+.term button.redact-bar {
+  outline: 1px dashed var(--accent);
+  outline-offset: 1px;
+}
+/* <details> rows (landing): the summary is the boxed row; no browser triangle. */
+.term-details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.term-details > summary::-webkit-details-marker {
+  display: none;
+}
+.term-details[open] > summary.term-row {
+  border-color: var(--line);
+  background: var(--ink-850);
+}
+.term-details[open] > summary .term-row-mark::before {
+  content: "\2212";
 }

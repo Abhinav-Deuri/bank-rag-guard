@@ -68,8 +68,8 @@ function Replay() {
           09:41:02 teller1, reads tier 1 only
         </L>
         <L i={1}>
-          <span className="text-accent">teller1 ===&gt;</span>{" "}
-          <span className="text-ok">What do the contracts say about termination?</span>
+          <span className="t-prompt">teller1 ===&gt;</span>{" "}
+          <span className="t-string">What do the contracts say about termination?</span>
         </L>
         <div className="mt-1.5">
           <Step i={2} tag="ok" stage="Input guard" detail="no attack found" />
@@ -87,8 +87,8 @@ function Replay() {
           09:41:30 compliance1, reads tiers 1–3
         </L>
         <L i={9}>
-          <span className="text-accent">compliance1 ===&gt;</span>{" "}
-          <span className="text-ok">What do the contracts say about termination?</span>
+          <span className="t-prompt">compliance1 ===&gt;</span>{" "}
+          <span className="t-string">What do the contracts say about termination?</span>
         </L>
         <div className="mt-1.5">
           <Step i={10} tag="ok" stage="Clearance filter" detail="searched tiers 1–3" />
@@ -102,30 +102,35 @@ function Replay() {
   );
 }
 
-const STEPS: { stage: string; does: ReactNode }[] = [
+const STEPS: { stage: string; brief: string; does: ReactNode }[] = [
   {
     stage: "Identity",
+    brief: "Role and tier come from the account",
     does: "The role and clearance tier come from the account, never from what the question claims.",
   },
   {
     stage: "Input guard",
+    brief: "Attacks stopped before any search",
     does: "A model screens the question for prompt injection, in English, Arabic and Arabizi. Personal data in the question is removed first, so the guard never sees it.",
   },
   {
     stage: "Clearance filter",
+    brief: "Restricted documents are never retrieved",
     does: (
       <>
-        The tier rule is part of the database query: <code className="text-ok">WHERE tier &lt;= user_tier</code>.
+        The tier rule is part of the database query: <code className="t-string">WHERE tier &lt;= user_tier</code>.
         Restricted documents are never retrieved, so a tricked model has nothing to reveal.
       </>
     ),
   },
   {
     stage: "Passage screen",
+    brief: "Hidden instructions are withheld",
     does: "Retrieved passages that contain instructions aimed at the assistant are withheld before the model reads them.",
   },
   {
     stage: "Masking",
+    brief: "Personal data removed before the model",
     does: (
       <>
         Names, IBANs, Emirates IDs and phone numbers become numbered tags such as <Bar>IBAN 1</Bar>, by pattern
@@ -135,10 +140,12 @@ const STEPS: { stage: string; does: ReactNode }[] = [
   },
   {
     stage: "Answer checks",
+    brief: "Answer re-masked; fishing flagged",
     does: "The answer is masked again. A mosaic check flags anyone who reaches many different customers within an hour.",
   },
   {
     stage: "Audit log",
+    brief: "Every step in a tamper-evident log",
     does: "Every step is written to an append-only log where each entry carries the fingerprint of the one before. Editing one breaks the chain, and anyone can re-check it.",
   },
 ];
@@ -175,14 +182,14 @@ export function TerminalLanding() {
     <div className="term flex min-h-dvh flex-col text-fg">
       <TermCursor />
       <LandingMotion />
-      <header className="sticky top-0 z-10 flex flex-wrap items-baseline gap-x-6 gap-y-1 border-b border-line bg-black px-4 py-2.5 sm:px-6">
+      <header className="sticky top-0 z-10 flex flex-wrap items-baseline gap-x-6 gap-y-1 border-b border-line bg-[var(--screen)] px-4 py-2.5 sm:px-6">
         <span className="font-semibold">AEGIS-Z</span>
         <span className="hidden text-dim md:inline">Bank document assistant</span>
         <nav aria-label="Page" className="ms-auto flex flex-wrap items-baseline gap-x-5 gap-y-1">
-          <a href="#how" className="text-dim hover:text-fg">
+          <a href="#how" className="term-key">
             How it works
           </a>
-          <a href="#limits" className="text-dim hover:text-fg">
+          <a href="#limits" className="term-key">
             Limits
           </a>
           <Link href={WORKSPACE} className="term-key">
@@ -210,7 +217,7 @@ export function TerminalLanding() {
               <Link href={WORKSPACE} className="term-key term-key-primary text-[15px]">
                 Open the workspace
               </Link>
-              <a href="#how" className="text-dim underline decoration-line underline-offset-4 hover:text-fg">
+              <a href="#how" className="term-key">
                 See what happens to a question
               </a>
             </div>
@@ -227,19 +234,21 @@ export function TerminalLanding() {
               What happens to a question
             </h2>
             <p className="mt-3 max-w-[64ch] text-dim">
-              Seven steps, in order. The workspace shows each one under every answer, so you can check them as you go.
+              Seven steps, in order. Open one to read how it works; the workspace shows all of them under every answer.
             </p>
-            <ol data-boot className="mt-10 border-t border-line-soft">
+            <ol data-boot className="mt-10 space-y-1.5">
               {STEPS.map((s, i) => (
-                <li
-                  key={s.stage}
-                  style={{ "--i": i } as CSSProperties}
-                  className="boot-row grid gap-x-6 gap-y-1 border-b border-line-soft py-5 sm:grid-cols-[4ch_7ch_18ch_minmax(0,60ch)]"
-                >
-                  <span className="text-faint">{String(i + 1).padStart(2, "0")}</span>
-                  <span aria-hidden className="boot-tag whitespace-pre max-sm:hidden" />
-                  <span className="text-accent">{s.stage}</span>
-                  <p className="text-dim">{s.does}</p>
+                <li key={s.stage} style={{ "--i": i } as CSSProperties} className="boot-row">
+                  <details className="term-details">
+                    <summary className="term-row">
+                      <span aria-hidden className="term-row-mark" />
+                      <span className="t-num shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                      <span aria-hidden className="boot-tag shrink-0 whitespace-pre max-sm:hidden" />
+                      <span className="w-[17ch] shrink-0 text-accent max-sm:w-auto">{s.stage}</span>
+                      <span className="min-w-0 text-dim max-sm:hidden">{s.brief}</span>
+                    </summary>
+                    <p className="term-read border-x border-b border-line-soft px-[1.4ch] py-3 text-dim">{s.does}</p>
+                  </details>
                 </li>
               ))}
             </ol>
@@ -282,18 +291,22 @@ export function TerminalLanding() {
               <h2 className="text-[clamp(1.5rem,3vw,2.1rem)] font-semibold leading-tight text-fg">
                 What this demo is, and what it isn’t
               </h2>
-              <p className="mt-3 text-dim">Read these before you judge the results. They are the limits we know about.</p>
+              <p className="mt-3 text-dim">The limits we know about. Open each one before you judge the results.</p>
             </div>
-            <dl className="border-t border-line-soft">
+            <ul className="space-y-1.5">
               {LIMITS.map((l) => (
-                <div key={l.title} className="grid gap-x-6 gap-y-1 border-b border-line-soft py-5 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
-                  <dt className="text-fg">
-                    <span className="text-warn">[NOTE]</span> {l.title}
-                  </dt>
-                  <dd className="text-dim">{l.body}</dd>
-                </div>
+                <li key={l.title}>
+                  <details className="term-details">
+                    <summary className="term-row">
+                      <span aria-hidden className="term-row-mark" />
+                      <span className="shrink-0 text-warn">[NOTE]</span>
+                      <span className="text-fg">{l.title}</span>
+                    </summary>
+                    <p className="term-read border-x border-b border-line-soft px-[1.4ch] py-3 text-dim">{l.body}</p>
+                  </details>
+                </li>
               ))}
-            </dl>
+            </ul>
           </div>
         </section>
 
@@ -307,8 +320,8 @@ export function TerminalLanding() {
               href={WORKSPACE}
               className="group mt-5 flex flex-wrap items-baseline gap-x-3 border-b border-line pb-3 text-[clamp(1.1rem,2.6vw,1.6rem)] hover:border-ok"
             >
-              <span className="text-accent">Command ===&gt;</span>
-              <span className="text-ok group-hover:underline">open workspace</span>
+              <span className="t-prompt">Command ===&gt;</span>
+              <span className="t-string group-hover:underline">open workspace</span>
               <span aria-hidden className="term-cursor" />
             </Link>
           </div>

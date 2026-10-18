@@ -141,10 +141,7 @@ function inline(text: string, cite: CiteProps | undefined, keyBase: string, reve
                 }}
                 aria-pressed={on}
                 aria-label={`Show source ${n}`}
-                className={cn(
-                  "num px-px font-sans font-semibold underline decoration-1 underline-offset-[3px]",
-                  on ? "text-accent" : "text-dim hover:text-fg",
-                )}
+                className="term-chip num mx-px text-[0.9em]"
               >
                 {bit}
               </button>

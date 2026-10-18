@@ -442,43 +442,32 @@ export function Console() {
     <div className="term flex h-dvh flex-col overflow-hidden text-fg">
       <BootScreen users={usersState} audit={audit} />
       {/* Title line */}
-      <header className="flex shrink-0 flex-wrap items-baseline gap-x-6 gap-y-1 border-b border-line px-3 py-2 sm:px-5">
-        <Link href="/" className="font-semibold text-fg" aria-label="AEGIS-Z overview">
+      <header className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1.5 border-b border-line px-3 py-2 sm:px-5">
+        <Link href="/" className="term-key font-semibold" aria-label="AEGIS-Z overview">
           AEGIS-Z
         </Link>
-        <span className="hidden text-dim md:inline">Bank document assistant</span>
 
-        <nav aria-label="Acting as" className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-accent">User</span>
+        <nav aria-label="Acting as" className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+          <span className="me-1 text-accent">User</span>
           {usersState.status === "loading" && <span className="text-faint">loading…</span>}
-          {users.map((u) => {
-            const on = u.username === me?.username;
-            return (
-              <button
-                key={u.username}
-                type="button"
-                aria-pressed={on}
-                disabled={Boolean(pending)}
-                onClick={() => switchUser(u.username)}
-                title={pending ? "Wait for the current answer before switching" : `${u.role}, tier ${u.tier}`}
-                className={cn(
-                  "px-1 disabled:cursor-not-allowed",
-                  on ? "bg-fg text-bg" : "text-dim hover:text-fg",
-                )}
-              >
-                {u.username}
-              </button>
-            );
-          })}
+          {users.map((u) => (
+            <button
+              key={u.username}
+              type="button"
+              aria-pressed={u.username === me?.username}
+              disabled={Boolean(pending)}
+              onClick={() => switchUser(u.username)}
+              title={pending ? "Wait for the current answer before switching" : `${u.role}, reads ${tierRange(u.tier)}`}
+              className="term-key"
+            >
+              {u.username}
+            </button>
+          ))}
         </nav>
 
         {me && (
-          <span
-            className="min-w-0"
-            aria-label={`${me.username} can read ${tierRange(me.tier)}`}
-          >
-            <span className="text-dim">{me.role}, </span>
-            <span className="text-accent">reads </span>
+          <span className="min-w-0 text-[13px]" aria-label={`${me.username} can read ${tierRange(me.tier)}`}>
+            <span className="text-dim">{me.role}, reads </span>
             <span className="whitespace-nowrap text-fg">{tierRange(me.tier)}</span>
             {me.tier < maxTier && (
               <span className="whitespace-nowrap text-faint">
@@ -489,34 +478,41 @@ export function Console() {
           </span>
         )}
 
-        <button
-          type="button"
-          onClick={() => setView(!document.documentElement.classList.contains("view-plain"))}
-          className="ms-auto text-dim underline decoration-line underline-offset-4 hover:text-fg"
-        >
-          <span className="when-terminal">Plain view</span>
-          <span className="when-plain">Terminal view</span>
-        </button>
-        <span className="flex items-baseline gap-x-2">
-          <span className="text-accent">Log</span>
-          {chain ? (
-            <span className={cn("num", chain.ok ? "text-ok" : "text-bad")}>
-              {chain.ok ? `verified${entries ? ` ${entries}` : ""}` : "broken"}
-            </span>
-          ) : (
-            <span className="text-faint">{audit.loading ? "checking" : "unknown"}</span>
-          )}
+        <span className="ms-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+          <button
+            type="button"
+            onClick={() => setView(!document.documentElement.classList.contains("view-plain"))}
+            className="term-key"
+          >
+            <span className="when-terminal">Plain view</span>
+            <span className="when-plain">Terminal view</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => run("verify")}
+            className="term-key"
+            title="Re-check every audit entry against its fingerprint"
+          >
+            <span className="text-accent">Log </span>
+            {chain ? (
+              <span className={chain.ok ? "text-ok" : "text-bad"}>
+                {chain.ok ? `verified${entries ? ` ${entries}` : ""}` : "broken"}
+              </span>
+            ) : (
+              <span className="text-faint">{audit.loading ? "checking" : "unknown"}</span>
+            )}
+          </button>
         </span>
       </header>
 
-      <nav aria-label="Panels" className="flex shrink-0 gap-5 border-b border-line-soft px-3 lg:hidden">
+      <nav aria-label="Panels" className="flex shrink-0 gap-2 border-b border-line-soft px-3 py-1.5 lg:hidden">
         {paneTabs.map((p) => (
           <button
             key={p.id}
             type="button"
             aria-pressed={pane === p.id}
             onClick={() => setPane(p.id)}
-            className={cn("py-2", pane === p.id ? "bg-fg px-1 text-bg" : "px-1 text-dim")}
+            className="term-key"
           >
             {p.label}
           </button>
@@ -529,7 +525,7 @@ export function Console() {
             {usersState.status === "error" && (
               <div role="alert" className="mb-4 max-w-[76ch]">
                 <p className="text-bad">Can’t load the demo identities. {usersState.error.message}</p>
-                <button type="button" onClick={reloadUsers} className="text-accent underline underline-offset-4">
+                <button type="button" onClick={reloadUsers} className="term-key mt-2">
                   Try again
                 </button>
               </div>
@@ -560,7 +556,7 @@ export function Console() {
 
         <aside
           className={cn(
-            "term-aside min-h-0 min-w-0 flex-1 flex-col overflow-y-auto border-line lg:flex lg:max-w-[min(46%,600px)] lg:border-s",
+            "term-aside min-h-0 min-w-0 flex-1 flex-col overflow-y-auto border-line bg-panel lg:flex lg:max-w-[min(44%,560px)] lg:border-s",
             pane === "answers" ? "hidden" : "flex",
           )}
         >
@@ -603,7 +599,7 @@ export function Console() {
         <p
           role="status"
           className={cn(
-            "min-h-[1.6em] truncate",
+            "min-h-[1.6em] truncate text-[13px]",
             shownMessage.tone === "ok" && "text-ok",
             shownMessage.tone === "warn" && "text-warn",
             shownMessage.tone === "bad" && "text-bad",
@@ -613,13 +609,13 @@ export function Console() {
           {shownMessage.text}
         </p>
         <form
-          className="flex items-baseline gap-2"
+          className="mt-0.5 flex items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             submit();
           }}
         >
-          <label htmlFor="command" className="shrink-0 text-accent">
+          <label htmlFor="command" className="shrink-0 t-prompt">
             Command ===&gt;
           </label>
           <input
@@ -649,69 +645,85 @@ export function Console() {
             aria-describedby="command-help"
             aria-invalid={tooLong}
             placeholder={me ? `type a question as ${me.username} and press Enter` : "type help"}
-            className="min-w-0 flex-1 border-b border-line-soft bg-transparent px-0.5 py-0.5 text-base text-ok sm:text-[14px] caret-[var(--input)] outline-none placeholder:text-faint focus:border-ok"
+            className="min-w-0 flex-1 bg-transparent text-base placeholder:text-faint sm:text-[14px]"
           />
           {codePointLength(line) > MAX_QUESTION_LENGTH - 100 && (
             <span className={cn("num shrink-0 text-xs", tooLong ? "text-bad" : "text-faint")}>
               {codePointLength(line)}/{MAX_QUESTION_LENGTH}
             </span>
           )}
-          <button type="submit" disabled={!line.trim() || Boolean(pending)} className="term-key shrink-0">
+          <button type="submit" disabled={!line.trim() || Boolean(pending)} className="term-key term-key-primary shrink-0">
             {pending ? "Working" : "Run"}
           </button>
         </form>
-        <div id="command-help" className="mt-1.5 flex flex-wrap gap-x-5 gap-y-0.5 text-[13px]">
+        <div id="command-help" className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
           {KEYS.map((k) => (
-            <button key={k.key} type="button" onClick={() => run(k.cmd)} className="group text-start">
-              <span className="text-fg">{k.key}</span>
-              <span className="text-accent group-hover:underline">={k.label}</span>
+            <button key={k.key} type="button" onClick={() => run(k.cmd)} className="term-key">
+              <span className="t-num">{k.key}</span> {k.label}
             </button>
           ))}
-          <span className="ms-auto hidden text-faint xl:inline">
-            Demo identities, synthetic customers, public contracts and email
-          </span>
+          <span className="ms-auto hidden text-faint xl:inline">Demo identities, synthetic customers</span>
         </div>
       </div>
     </div>
   );
 }
 
-function Welcome({ me, demos }: { me: DemoUser; demos: { title: string; does: string; run: () => void }[] }) {
+type Demo = { title: string; does: string; run: () => void };
+
+function Welcome({ me, demos }: { me: DemoUser; demos: Demo[] }) {
+  const [about, setAbout] = useState(false);
   return (
     <div className="max-w-[76ch] pb-4">
       <p className="text-fg">
-        A bank assistant that answers from customer complaints, contracts and internal email, and only from what the
-        person asking is cleared to read.
+        Signed in as <span className="t-string">{me.username}</span>
+        <span className="text-dim">
+          , {me.role}, reads {tierRange(me.tier)}.
+        </span>
       </p>
-      <p className="mt-2 text-dim">
-        You are {me.username}, a {me.role} who reads {tierRange(me.tier)}. Before the model sees anything, documents
-        above your tier are left out and names, IBANs, Emirates IDs and phone numbers are removed. Every step is
-        written to a log that can be checked for tampering.
-      </p>
+      <button type="button" aria-expanded={about} onClick={() => setAbout((v) => !v)} className="term-key mt-2">
+        What is this?
+      </button>
+      {about && (
+        <p className="term-read mt-2 text-dim">
+          A bank assistant that answers from customer complaints, contracts and internal email, only from what the
+          person asking may read. Before the model sees anything, documents above that tier are left out and names,
+          IBANs, Emirates IDs and phone numbers are removed. Every step is written to a log that shows tampering.
+        </p>
+      )}
       <DemoMenu demos={demos} />
-      <p className="mt-4 text-dim">
-        Or type your own question below and press Enter, in English or Arabic. Type{" "}
-        <span className="text-ok">help</span> for commands.
+      <p className="mt-4 text-[13px] text-faint">
+        Or type a question below. <span className="t-string">help</span> lists commands.
       </p>
     </div>
   );
 }
 
-function DemoMenu({ demos }: { demos: { title: string; does: string; run: () => void }[] }) {
+/** A one-line menu; the description of the focused or hovered demo shows below it. */
+function DemoMenu({ demos }: { demos: Demo[] }) {
+  const [focus, setFocus] = useState(0);
   return (
-    <div className="mt-5">
-      <p className="text-accent">Try a demo (click, or type its number)</p>
-      <ol className="mt-1.5 space-y-1">
+    <div className="mt-6">
+      <p className="text-accent">Try a demo</p>
+      <ul className="mt-1.5 flex flex-wrap gap-2">
         {demos.map((d, i) => (
-          <li key={d.title} className="grid grid-cols-[3ch_15ch_1fr] gap-x-1 max-sm:grid-cols-[3ch_1fr]">
-            <span className="text-fg">{i + 1}</span>
-            <button type="button" onClick={d.run} className="term-key justify-self-start">
-              {d.title}
+          <li key={d.title}>
+            <button
+              type="button"
+              onClick={d.run}
+              onMouseEnter={() => setFocus(i)}
+              onFocus={() => setFocus(i)}
+              aria-describedby="demo-desc"
+              className="term-key"
+            >
+              <span className="t-num">{i + 1}</span> {d.title}
             </button>
-            <span className="text-dim max-sm:col-start-2">{d.does}</span>
           </li>
         ))}
-      </ol>
+      </ul>
+      <p id="demo-desc" className="mt-2 min-h-[3.2em] text-[13px] text-dim">
+        {demos[focus]?.does} <span className="text-faint">Click it, or type {focus + 1} and press Enter.</span>
+      </p>
     </div>
   );
 }
@@ -723,46 +735,25 @@ function HelpText() {
         <tbody>
           {COMMANDS.map((c) => (
             <tr key={c.cmd}>
-              <td className="whitespace-nowrap pe-5 align-top text-ok">{c.cmd}</td>
+              <td className="whitespace-nowrap pe-5 align-top t-string">{c.cmd}</td>
               <td className="text-dim">{c.does}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="mt-2 text-dim">
-        Anything else is sent as a question for the identity shown on the title line. Function keys:{" "}
-        {KEYS.map((k) => `${k.key} ${k.label.toLowerCase()}`).join(", ")}.
-      </p>
+      <p className="mt-2 text-[13px] text-faint">Anything else is sent as a question.</p>
     </div>
   );
 }
 
 function ExamplesText({ onPick }: { onPick: (q: string) => void }) {
   return (
-    <ul className="mt-1 space-y-0.5">
+    <div className="mt-1.5 flex flex-wrap gap-2">
       {EXAMPLES.map((ex) => (
-        <li key={ex.label}>
-          <PickLink q={ex.question} onPick={onPick}>
-            {ex.label}
-          </PickLink>
-          <span className="text-faint" dir="auto">
-            {"  "}
-            {ex.question}
-          </span>
-        </li>
+        <button key={ex.label} type="button" onClick={() => onPick(ex.question)} className="term-key" title={ex.question}>
+          {ex.label}
+        </button>
       ))}
-    </ul>
-  );
-}
-
-function PickLink({ q, onPick, children }: { q: string; onPick: (q: string) => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onPick(q)}
-      className="text-fg underline decoration-line decoration-1 underline-offset-[3px] hover:decoration-fg"
-    >
-      {children}
-    </button>
+    </div>
   );
 }

@@ -26,7 +26,7 @@ function markSeen() {
   }
 }
 
-/** "AEGIS-Z" in block letters (figlet, ANSI Shadow): solid blocks in white, the shading in turquoise. */
+/** "AEGIS-Z" in block letters (figlet, ANSI Shadow): solid blocks in white, the shading in Monokai pink. */
 const BANNER = [" █████╗ ███████╗ ██████╗ ██╗███████╗     ███████╗", "██╔══██╗██╔════╝██╔════╝ ██║██╔════╝     ╚══███╔╝", "███████║█████╗  ██║  ███╗██║███████╗█████╗ ███╔╝ ", "██╔══██║██╔══╝  ██║   ██║██║╚════██║╚════╝███╔╝  ", "██║  ██║███████╗╚██████╔╝██║███████║     ███████╗", "╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝╚══════╝     ╚══════╝"];
 
 function Banner() {
@@ -40,7 +40,7 @@ function Banner() {
             ) : ch === " " ? (
               " "
             ) : (
-              <span key={j} className="text-accent">{ch}</span>
+              <span key={j} className="t-prompt">{ch}</span>
             ),
           )}
         </span>
@@ -132,7 +132,7 @@ export function BootScreen({ users, audit }: { users: UsersState; audit: Audit }
     <div
       role="status"
       aria-live="polite"
-      className={cn("boot-screen term fixed inset-0 z-50 flex items-center justify-center bg-black px-5", leaving && "boot-leaving")}
+      className={cn("boot-screen term fixed inset-0 z-50 flex items-center justify-center px-5", leaving && "boot-leaving")}
     >
       <div className="w-full max-w-[64ch]">
         <Banner />

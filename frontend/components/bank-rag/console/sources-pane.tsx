@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Redacted, type RevealProps } from "./redacted";
 import type { Turn } from "./thread";
+
+/** One-line preview of a masked passage: tags become [NAME 1] style labels. */
+function preview(text: string) {
+  return text.replace(/\[([A-Z][A-Z_]*?)(?:_(\d+))?\]/g, (_m, a: string, n?: string) => `[${a.replace(/_/g, " ")}${n ? ` ${n}` : ""}]`);
+}
 
 /** Readable name for the backend's `source` field ("cuad/…", "enron_email/…", "synthetic_customer_notes"). */
 function kindOf(source: string) {
@@ -30,6 +35,8 @@ export function SourcesPane({
   const r = turn?.status === "done" ? turn.response : undefined;
   const sources = r?.sources ?? [];
   const refs = useRef<(HTMLLIElement | null)[]>([]);
+  // Passages open when cited or clicked; the rest stay one line, so the panel stays short.
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (cite) refs.current[cite - 1]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -59,39 +66,55 @@ export function SourcesPane({
       {empty && <p className="mt-2.5 text-sm text-dim">{empty}</p>}
 
       {sources.length > 0 && (
-        <p className="mt-2 text-[13px] text-dim">
-          What the model read, with <span className="redact-bar">NAME 1</span> marking a value removed before it did. The
-          same number means the same value.
+        <p className="mt-2 text-[13px] text-faint">
+          What the model read. <span className="redact-bar">NAME 1</span> marks a value removed before it did.
         </p>
       )}
 
       {sources.length > 0 && (
-        <ol className="mt-3">
+        <ol className="mt-3 space-y-1.5">
           {sources.map((s, i) => {
             const on = cite === i + 1;
+            const key = `${turn?.key}-${i}`;
+            const open = opened[key] ?? on;
             return (
               <li
                 key={`${s.id}-${i}`}
                 ref={(el) => {
                   refs.current[i] = el;
                 }}
-                className={cn("-mx-3 border-t border-line-soft px-3 py-2.5", on && "bg-raised")}
               >
                 <button
                   type="button"
-                  onClick={() => onCite(i + 1)}
-                  aria-pressed={on}
-                  className="num flex w-full flex-wrap gap-x-3.5 gap-y-0.5 text-start font-ledger text-xs text-faint"
+                  aria-expanded={open}
+                  onClick={() => {
+                    setOpened((o) => ({ ...o, [key]: !open }));
+                    if (!open) onCite(i + 1);
+                  }}
+                  className="term-row text-[13px]"
                 >
-                  <span className={cn("font-medium", on ? "text-accent" : "text-dim")}>{i + 1}</span>
-                  <span className="text-dim">#{s.id}</span>
-                  <span>{kindOf(s.source)}</span>
-                  <span>Tier {s.tier}</span>
-                  <span title="Similarity between the question and this passage, not answer confidence">
-                    match {s.score.toFixed(3)}
-                  </span>
+                  <span aria-hidden className="term-row-mark" />
+                  <span className={cn("t-num shrink-0", on && "font-semibold")}>{i + 1}</span>
+                  <span className="shrink-0 text-dim">{kindOf(s.source)}</span>
+                  <span className="shrink-0 text-faint">tier {s.tier}</span>
+                  {!open && (
+                    <span className="min-w-0 truncate text-faint" dir="auto">
+                      {preview(s.text)}
+                    </span>
+                  )}
+                  {open && (
+                    <span className="ms-auto shrink-0 text-faint" title="Similarity between the question and this passage, not answer confidence">
+                      match {s.score.toFixed(3)} <span className="t-num">#{s.id}</span>
+                    </span>
+                  )}
                 </button>
-                <Redacted text={s.text} reveal={reveal} className="mt-1 font-doc text-sm leading-[1.75] text-dim" />
+                {open && (
+                  <Redacted
+                    text={s.text}
+                    reveal={reveal}
+                    className="term-read border-x border-b border-line-soft px-[1.2ch] py-2 text-[13.5px] leading-[1.75] text-dim"
+                  />
+                )}
               </li>
             );
           })}

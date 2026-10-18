@@ -47,8 +47,22 @@ function ChainStatus({ audit }: { audit: Audit }) {
   );
 }
 
+function kindTone(kind: AuditRow["kind"]) {
+  return kind === "blocked"
+    ? "text-bad"
+    : kind === "learned" || kind === "alert"
+      ? "text-warn"
+      : kind === "reveal"
+        ? "text-accent"
+        : kind === "answer"
+          ? "text-fg"
+          : "text-dim";
+}
+
 export function AuditLog({ audit }: { audit: Audit }) {
   const [onlyBlocked, setOnlyBlocked] = useState(false);
+  const [openRows, setOpenRows] = useState<Record<number, boolean>>({});
+  const [about, setAbout] = useState(false);
   const rows = useMemo(() => (audit.data?.entries ?? []).map(toAuditRow), [audit.data]);
   // Mark the entries that arrived with the latest refresh (what the last action wrote).
   // Derived while rendering, from the previous data, so no effect is needed.
@@ -75,7 +89,7 @@ export function AuditLog({ audit }: { audit: Audit }) {
         <h2 id="audit-h" className="text-[15px] font-medium tracking-normal">
           Audit log
         </h2>
-        <div className="flex items-baseline gap-3.5 text-[13px]" role="group" aria-label="Show entries">
+        <div className="flex flex-wrap items-center gap-1.5 text-[13px]" role="group" aria-label="Show entries">
           {[
             { on: !onlyBlocked, label: "All", set: false },
             { on: onlyBlocked, label: "Blocks and alerts", set: true },
@@ -85,7 +99,7 @@ export function AuditLog({ audit }: { audit: Audit }) {
               type="button"
               aria-pressed={f.on}
               onClick={() => setOnlyBlocked(f.set)}
-              className={cn("border-b-[1.5px] py-0.5", f.on ? "border-fg text-fg" : "border-transparent text-dim hover:text-fg")}
+              className="term-key"
             >
               {f.label}
             </button>
@@ -94,7 +108,7 @@ export function AuditLog({ audit }: { audit: Audit }) {
             type="button"
             onClick={audit.refresh}
             disabled={audit.loading}
-            className="text-dim hover:text-fg disabled:opacity-60"
+            className="term-key"
           >
             {audit.loading ? "Checking…" : "Verify again"}
           </button>
@@ -124,15 +138,27 @@ export function AuditLog({ audit }: { audit: Audit }) {
                 const broken = brokenLink(row, i);
                 return (
                   <tr key={row.id} className={cn("align-top", row.id >= newFrom && "term-new")}>
-                    <td className="border-b border-line-soft py-2 pe-2 text-dim">{row.id}</td>
+                    <td className="t-num border-b border-line-soft py-2 pe-2">{row.id}</td>
                     {hasTimes && <td className="border-b border-line-soft px-2 py-2 text-faint">{row.time}</td>}
-                    <td className="border-b border-line-soft px-2 py-2 font-sans text-[13px]">
-                      <span className={cn(row.kind === "blocked" ? "text-bad" : row.kind === "learned" || row.kind === "alert" ? "text-warn" : row.kind === "reveal" ? "text-accent" : row.kind === "answer" ? "text-fg" : "text-dim")}>
-                        {row.label}
-                      </span>{" "}
-                      <span className="text-faint">{row.actor}</span>
-                      {row.detail && (
-                        <Redacted text={row.detail} className="mt-px text-[12.5px] leading-snug text-dim" />
+                    <td className="border-b border-line-soft px-2 py-1.5 font-sans text-[13px]">
+                      {row.detail ? (
+                        <button
+                          type="button"
+                          aria-expanded={Boolean(openRows[row.id])}
+                          onClick={() => setOpenRows((o) => ({ ...o, [row.id]: !o[row.id] }))}
+                          className="term-row border-transparent px-1 py-0"
+                        >
+                          <span aria-hidden className="term-row-mark" />
+                          <span className={kindTone(row.kind)}>{row.label}</span>
+                          <span className="text-faint">{row.actor}</span>
+                        </button>
+                      ) : (
+                        <span className="px-1">
+                          <span className={kindTone(row.kind)}>{row.label}</span> <span className="text-faint">{row.actor}</span>
+                        </span>
+                      )}
+                      {row.detail && openRows[row.id] && (
+                        <Redacted text={row.detail} className="mt-1 ps-[3ch] text-[12.5px] leading-snug text-dim" />
                       )}
                     </td>
                     {hasHashes && (
@@ -151,13 +177,18 @@ export function AuditLog({ audit }: { audit: Audit }) {
         </div>
       )}
 
-      <p className="mt-3 text-[12.5px] text-faint">
-        {hasHashes
-          ? "Each fingerprint includes the one before it, so editing any entry breaks every entry after it. "
-          : ""}
-        Shows the latest 12 entries; verification covers the whole log. Questions are stored with personal details
-        already removed.
-      </p>
+      <button type="button" aria-expanded={about} onClick={() => setAbout((v) => !v)} className="term-key mt-3 self-start text-[13px]">
+        How the chain works
+      </button>
+      {about && (
+        <p className="term-read mt-2 text-[12.5px] text-faint">
+          {hasHashes
+            ? "Each fingerprint includes the one before it, so editing any entry breaks every entry after it. "
+            : ""}
+          Shows the latest 12 entries; verification covers the whole log. Questions are stored with personal details
+          already removed.
+        </p>
+      )}
     </section>
   );
 }

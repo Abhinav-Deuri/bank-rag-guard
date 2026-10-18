@@ -85,13 +85,13 @@ export function RevealPanel({
       </h2>
       <p className="mt-1 text-[13px] text-dim">
         {listing.can_request
-          ? "Select a numbered bar in one of your answers to ask for the real value. A second person must approve, and you see it once."
+          ? "Select a numbered bar in your answer to ask for its real value. A second person approves; you see it once."
           : "Colleagues asking to see one masked value. You can't approve your own requests."}
       </p>
 
       {draft && (
         <form
-          className="mt-3 rounded border border-accent/50 p-3"
+          className="mt-3 border border-accent p-3"
           onSubmit={(e) => {
             e.preventDefault();
             void submit();
@@ -109,17 +109,17 @@ export function RevealPanel({
             maxLength={300}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className="mt-1 w-full resize-y rounded border border-line bg-bg px-2.5 py-2 text-sm text-fg"
+            className="mt-1 w-full resize-y border border-line bg-bg px-2.5 py-2 text-sm text-fg"
           />
-          <div className="mt-2 flex gap-3">
+          <div className="mt-2 flex gap-2">
             <button
               type="submit"
               disabled={busy !== null || reason.trim().length < 10}
-              className="rounded bg-accent px-3.5 py-1.5 text-sm font-medium text-bg disabled:opacity-50"
+              className="term-key term-key-primary"
             >
               Send request
             </button>
-            <button type="button" onClick={onCancelDraft} className="text-sm text-dim hover:text-fg">
+            <button type="button" onClick={onCancelDraft} className="term-key">
               Cancel
             </button>
           </div>
@@ -144,12 +144,12 @@ export function RevealPanel({
                   <span className="num text-faint">(answer #{r.answer_id})</span>
                 </p>
                 <p className="mt-0.5 text-[13px] text-dim">“{r.reason}”</p>
-                <div className="mt-1.5 flex gap-4 text-[13px]">
+                <div className="mt-1.5 flex gap-2 text-[13px]">
                   <button
                     type="button"
                     disabled={busy !== null}
                     onClick={() => void run(`a${r.id}`, async () => void (await decideReveal({ username, request_id: r.id, approve: true })))}
-                    className="font-medium text-accent underline underline-offset-4 disabled:opacity-50"
+                    className="term-key term-key-primary"
                   >
                     Approve
                   </button>
@@ -157,7 +157,7 @@ export function RevealPanel({
                     type="button"
                     disabled={busy !== null}
                     onClick={() => void run(`d${r.id}`, async () => void (await decideReveal({ username, request_id: r.id, approve: false })))}
-                    className="text-dim underline underline-offset-4 hover:text-fg disabled:opacity-50"
+                    className="term-key"
                   >
                     Deny
                   </button>
@@ -195,7 +195,7 @@ export function RevealPanel({
                           onRevealed(r.answer_id, r.token, value);
                         })
                       }
-                      className="mt-1.5 rounded border border-accent px-3 py-1 text-[13px] font-medium text-accent disabled:opacity-50"
+                      className="term-key term-key-primary mt-1.5 text-[13px]"
                     >
                       Show value once
                     </button>
