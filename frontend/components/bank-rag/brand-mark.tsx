@@ -18,7 +18,7 @@ export function BrandWordmark({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <BrandMark />
-      <span className="text-[1.05rem] font-medium tracking-tight text-fg">Bank RAG Guard</span>
+      <span className="text-[1.05rem] font-semibold tracking-tight text-fg">AEGIS-Z</span>
     </span>
   );
 }

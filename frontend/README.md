@@ -1,4 +1,4 @@
-# Bank RAG Guard — frontend
+# AEGIS-Z — Frontend
 
 Next.js (App Router) + TypeScript + Tailwind v4 + Framer Motion + GSAP ScrollTrigger. It talks to the
 FastAPI backend (`../app.py`) through a same-origin proxy.

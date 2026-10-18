@@ -7,11 +7,11 @@ import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: {
-    default: "Bank RAG Guard",
-    template: "%s · Bank RAG Guard",
+    default: "AEGIS-Z",
+    template: "%s · AEGIS-Z",
   },
   description:
-    "Explore a bank document assistant with tier-based retrieval, bilingual personal-data masking, and a tamper-evident audit trail.",
+    "AEGIS-Z: Sovereign AI Security Gateway on IBM LinuxONE with tier-based retrieval, bilingual personal-data masking, and tamper-evident audit trail.",
 };
 
 export const viewport: Viewport = {

@@ -268,9 +268,9 @@ export function Console() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-bg text-fg">
       <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-x-7 gap-y-1 border-b border-line bg-bg px-4 sm:px-6 z-10">
-        <Link href="/" className="inline-flex items-center gap-2 py-2 font-medium" aria-label="Bank RAG Guard overview">
+        <Link href="/" className="inline-flex items-center gap-2 py-2 font-medium" aria-label="AEGIS-Z overview">
           <BrandMark className="size-6 text-fg" />
-          Bank RAG Guard
+          <span className="font-semibold tracking-tight">AEGIS-Z</span>
         </Link>
 
         <nav aria-label="Acting as" className="flex items-stretch gap-5 self-stretch">

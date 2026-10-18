@@ -96,7 +96,7 @@ export function SiteNav() {
         className="pointer-events-auto relative isolate mx-auto flex w-full max-w-5xl items-center justify-between gap-3 rounded-full py-2 pl-4 pr-2 sm:pl-5"
       >
         <span aria-hidden className="glass-pill" />
-        <Link href="/" aria-label="Bank RAG Guard home" className="shrink-0 rounded-full">
+        <Link href="/" aria-label="AEGIS-Z home" className="shrink-0 rounded-full">
           <BrandWordmark />
         </Link>
 

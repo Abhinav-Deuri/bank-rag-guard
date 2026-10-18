@@ -58,7 +58,7 @@ export function errorFromResponse(status: number, body: unknown): ApiError {
   if (code === "upstream_unreachable" || code === "upstream_misconfigured") {
     return new ApiError(
       "unreachable",
-      "Can't reach the Bank RAG Guard backend. Check that FastAPI is running and that BACKEND_URL points to it.",
+      "Can't reach the AEGIS-Z backend. Check that FastAPI is running and that BACKEND_URL points to it.",
       status,
     );
   }
