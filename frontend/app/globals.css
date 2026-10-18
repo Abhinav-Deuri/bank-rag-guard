@@ -872,3 +872,20 @@ html:not(.view-plain) .when-plain {
 .term-details[open] > summary .term-row-mark::before {
   content: "\2212";
 }
+/* The side tray slides in from the right when it opens. */
+@media (min-width: 1024px) {
+  .term-tray {
+    animation: tray-in 0.22s var(--ease-out) both;
+  }
+}
+@keyframes tray-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .term-tray {
+    animation: none;
+  }
+}

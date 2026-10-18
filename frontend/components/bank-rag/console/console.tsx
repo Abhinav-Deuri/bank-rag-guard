@@ -52,6 +52,7 @@ const KEYS = [
   { key: "F2", label: "Next user", cmd: "next-user" },
   { key: "F4", label: "Verify log", cmd: "verify" },
   { key: "F9", label: "Examples", cmd: "examples" },
+  { key: "F8", label: "Panel", cmd: "panel" },
   { key: "F10", label: "Clear", cmd: "clear" },
 ] as const;
 
@@ -95,6 +96,18 @@ export function Console() {
   const [line, setLine] = useState("");
   const [message, setMessage] = useState<Message | null>(null);
   const [pane, setPane] = useState<Pane>("answers");
+  // On wide screens, sources and the audit log live in a tray that opens on demand, so the conversation
+  // has the screen to itself. On phones the same panels are tabs.
+  const [tray, setTray] = useState(false);
+  /** Show a side panel: the tab on phones, the tray on wide screens (scrolled to `heading` if given). */
+  const openPanel = useCallback((tab: Pane, heading?: string) => {
+    if (isNarrow()) {
+      setPane(tab);
+      return;
+    }
+    setTray(true);
+    if (heading) window.setTimeout(() => showInAside(heading), 60);
+  }, []);
   const keyRef = useRef(0);
   const history = useRef<string[]>([]);
   const historyAt = useRef(-1);
@@ -131,7 +144,7 @@ export function Console() {
               askedAt: turn.askedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
             });
             setMessage({ tone: "info", text: `Give a reason in Reveal requests to ask for ${token.replace(/_/g, " ")}.` });
-            if (isNarrow()) setPane("sources");
+            openPanel("sources", "reveal-h");
           }
         : undefined,
     };
@@ -309,7 +322,10 @@ export function Console() {
       } else if (cmd === "verify") {
         refreshAudit();
         setMessage({ tone: "info", text: "Checking every audit entry against its fingerprint. Result in the Audit log panel." });
-        if (isNarrow()) setPane("audit");
+        openPanel("audit", "audit-h");
+      } else if (cmd === "panel") {
+        if (isNarrow()) setPane((p) => (p === "answers" ? "sources" : "answers"));
+        else setTray((t) => !t);
       } else if (/^view$/i.test(word) && /^(plain|terminal)$/i.test(rest[0] ?? "") && rest.length === 1) {
         setView(rest[0].toLowerCase() === "plain");
       } else if (cmd === "boot") {
@@ -342,7 +358,7 @@ export function Console() {
         void ask(me, text);
       }
     },
-    [ask, demos, fill, me, note, pending, refreshAudit, switchUser, users],
+    [ask, demos, fill, me, note, openPanel, pending, refreshAudit, switchUser, users],
   );
 
   const submit = () => {
@@ -353,6 +369,16 @@ export function Console() {
     setLine("");
     run(text);
   };
+
+  // Esc closes the tray.
+  useEffect(() => {
+    if (!tray) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTray(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tray]);
 
   // Function keys work anywhere on the screen.
   useEffect(() => {
@@ -375,8 +401,7 @@ export function Console() {
       out.push({
         label: "See it in the audit log",
         run: () => {
-          if (isNarrow()) setPane("audit");
-          else showInAside("audit-h");
+          openPanel("audit", "audit-h");
         },
       });
       out.push({ label: "Try asking for raw IBANs", run: () => askAs(turn.username, EXAMPLES[3].question) });
@@ -400,8 +425,7 @@ export function Console() {
               token,
               askedAt: turn.askedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
             });
-            if (isNarrow()) setPane("sources");
-            else showInAside("reveal-h");
+            openPanel("sources", "reveal-h");
           },
         });
       }
@@ -413,8 +437,7 @@ export function Console() {
       out.push({
         label: "Show the approved value",
         run: () => {
-          if (isNarrow()) setPane("sources");
-          else showInAside("reveal-h");
+          openPanel("sources", "reveal-h");
         },
       });
     }
@@ -425,7 +448,7 @@ export function Console() {
   const pickCite = (turnKey: number, n: number) => {
     setActiveKey(turnKey);
     setCite(n);
-    if (isNarrow()) setPane("sources");
+    openPanel("sources");
   };
 
   const selectTurn = (turnKey: number) => {
@@ -492,6 +515,16 @@ export function Console() {
         <span className="ms-auto flex flex-wrap items-center gap-x-3 gap-y-1">
           <button
             type="button"
+            aria-expanded={tray}
+            aria-controls="side-tray"
+            onClick={() => setTray((t) => !t)}
+            className="term-key hidden lg:inline-block"
+            title="Sources, reveal requests and the audit log (F8)"
+          >
+            Sources &amp; log{sourceCount ? <span className="t-num"> {sourceCount}</span> : null}
+          </button>
+          <button
+            type="button"
             onClick={() => setView(!document.documentElement.classList.contains("view-plain"))}
             className="term-key"
           >
@@ -533,6 +566,7 @@ export function Console() {
       <div className="flex min-h-0 flex-1">
         <main id="main" className={cn("min-h-0 min-w-0 flex-1 flex-col", pane === "answers" ? "flex" : "hidden lg:flex")}>
           <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-3 sm:px-5">
+            <div className="mx-auto w-full max-w-[100ch]">
             {usersState.status === "error" && (
               <div role="alert" className="mb-4 max-w-[76ch]">
                 <p className="text-bad">Can’t load the demo identities. {usersState.error.message}</p>
@@ -562,15 +596,25 @@ export function Console() {
               revealFor={revealFor}
               nextFor={nextFor}
             />
+            </div>
           </div>
         </main>
 
         <aside
+          id="side-tray"
+          aria-label="Sources and audit log"
           className={cn(
-            "term-aside min-h-0 min-w-0 flex-1 flex-col overflow-y-auto border-line bg-panel lg:flex lg:max-w-[min(44%,560px)] lg:border-s",
+            "term-aside min-h-0 min-w-0 flex-1 flex-col overflow-y-auto border-line bg-panel",
             pane === "answers" ? "hidden" : "flex",
+            tray ? "term-tray lg:flex lg:max-w-[min(44%,560px)] lg:border-s" : "lg:hidden",
           )}
         >
+          <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-line-soft bg-panel px-4 py-1.5 lg:flex sm:px-6">
+            <span className="text-[13px] text-faint">Sources, reveals and the audit log</span>
+            <button type="button" onClick={() => setTray(false)} className="term-key text-[13px]" title="Close (Esc)">
+              Close
+            </button>
+          </div>
           <div className={cn(pane === "sources" ? "block" : "hidden lg:block")}>
             {me && reveals.data && (reveals.data.can_request || reveals.data.can_approve) && (
               <RevealPanel
