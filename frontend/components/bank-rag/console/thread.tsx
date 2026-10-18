@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { ApiError } from "@/lib/api/errors";
 import type { AskResponse } from "@/lib/api/types";
 import { useElapsed } from "@/hooks/use-elapsed";
+import { ProximityGlow } from "@/components/bank-rag/landing/proximity-glow";
 import { cn } from "@/lib/utils";
 import { Redacted } from "./redacted";
 
@@ -40,14 +41,59 @@ export function tierRange(tier: number) {
 function Pending({ turn, onStop }: { turn: Turn; onStop: () => void }) {
   const seconds = useElapsed(turn.startedAt);
   return (
-    <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm text-dim">
-      <p role="status">
-        Screening the question, then searching {tierRange(turn.tier)}.{" "}
-        <span className="num">{seconds} s</span> so far; answers usually take 10 to 40 seconds.
-      </p>
-      <button type="button" onClick={onStop} className="text-faint underline underline-offset-4 hover:text-fg">
-        Stop waiting
-      </button>
+    <div className="mt-4 space-y-3.5 max-w-[64ch]" role="status" aria-label="Loading answer and checking guard">
+      {/* Live pipeline status bar */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-md border border-line-soft bg-raised/50 px-3 py-2 text-xs">
+        <div className="flex items-center gap-2 text-accent">
+          <span className="relative flex size-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
+            <span className="relative inline-flex size-2 rounded-full bg-accent" />
+          </span>
+          <span className="font-medium text-fg">
+            Screening question & searching {tierRange(turn.tier)}…
+          </span>
+          <span className="num font-mono text-faint">({seconds}s elapsed)</span>
+        </div>
+        <button
+          type="button"
+          onClick={onStop}
+          className="text-xs text-faint underline underline-offset-4 hover:text-fg transition-colors"
+        >
+          Stop waiting
+        </button>
+      </div>
+
+      {/* Answer Lines Skeleton with simulated inline redaction tags & citation badge */}
+      <div className="space-y-2.5 rounded-lg border border-line-soft/80 bg-raised/20 p-4">
+        {/* Line 1 */}
+        <div className="flex items-center gap-2">
+          <div className="skeleton-shimmer h-4 flex-1 rounded" />
+          <div className="skeleton-shimmer h-4 w-20 rounded bg-accent/20" title="Simulated redaction" />
+          <div className="skeleton-shimmer h-4 w-28 rounded" />
+        </div>
+        {/* Line 2 */}
+        <div className="flex items-center gap-2">
+          <div className="skeleton-shimmer h-4 w-36 rounded" />
+          <div className="skeleton-shimmer h-4 flex-1 rounded" />
+          <div className="skeleton-shimmer h-4 w-6 rounded-full bg-accent/30" title="Citation badge" />
+        </div>
+        {/* Line 3 */}
+        <div className="flex items-center gap-2">
+          <div className="skeleton-shimmer h-4 w-24 rounded bg-accent/20" />
+          <div className="skeleton-shimmer h-4 flex-1 rounded" />
+          <div className="skeleton-shimmer h-4 w-16 rounded" />
+        </div>
+        {/* Line 4 */}
+        <div className="skeleton-shimmer h-4 w-3/5 rounded" />
+      </div>
+
+      {/* Safeguards / Facts Bar Skeleton */}
+      <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs">
+        <div className="skeleton-shimmer h-4 w-20 rounded" />
+        <div className="skeleton-shimmer h-4 w-24 rounded" />
+        <div className="skeleton-shimmer h-4 w-20 rounded" />
+        <div className="skeleton-shimmer h-4 w-28 rounded" />
+      </div>
     </div>
   );
 }
@@ -177,41 +223,71 @@ export function Thread({
   if (!count) return null;
 
   return (
-    <ol className="-mx-4 sm:-mx-5" aria-label="Questions and answers">
+    <ol className="space-y-4" aria-label="Questions and answers">
       {turns.map((turn, i) => {
         const active = turn.key === activeKey;
         return (
-          <li key={turn.key}>
-            <article
-              ref={i === count - 1 ? lastRef : undefined}
-              onClick={() => onSelect(turn.key)}
-              aria-current={active ? "true" : undefined}
+          <li key={turn.key} className="w-full">
+            <ProximityGlow
+              range={70}
               className={cn(
-                "border-b border-line-soft px-4 py-5 sm:px-5",
-                active ? "bg-raised" : "cursor-pointer hover:bg-raised/50",
+                "border-line-soft! transition-all duration-200",
+                active && "ring-1 ring-accent/60 shadow-[0_0_28px_rgba(56,189,248,0.12)]",
               )}
+              edgeSensitivity={30}
+              glowColor="215 85 72"
+              backgroundColor="var(--ink-900)"
+              borderRadius={20}
+              glowRadius={56}
+              glowIntensity={1.0}
+              coneSpread={25}
+              animated={false}
+              colors={["#1e3fd8", "#38bdf8", "#a5d8ff"]}
             >
-              <p className="num font-ledger text-xs text-faint">
-                <span className="text-dim">
-                  {turn.askedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
-                </span>
-                <span className="ms-4">
-                  {turn.username}, tier {turn.tier}
-                </span>
-              </p>
-              <h2 dir="auto" className="mt-1.5 max-w-[62ch] text-lg font-medium leading-snug tracking-normal">
-                {turn.question}
-              </h2>
-              <Body
-                turn={turn}
-                active={active}
-                cite={cite}
-                onCite={(n) => onCite(turn.key, n)}
-                onRetry={() => onRetry(turn)}
-                onStop={onStop}
-              />
-              <Facts turn={turn} />
-            </article>
+              <article
+                ref={i === count - 1 ? lastRef : undefined}
+                onClick={() => onSelect(turn.key)}
+                aria-current={active ? "true" : undefined}
+                className={cn(
+                  "w-full cursor-pointer p-5 sm:p-6 transition-colors",
+                  active ? "bg-raised/40" : "hover:bg-raised/20",
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="num font-ledger text-xs text-faint">
+                    <span className="text-dim">
+                      {turn.askedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+                    </span>
+                    <span className="ms-3 font-sans font-medium text-accent">
+                      {turn.username}
+                    </span>
+                    <span className="ms-1.5 rounded-full border border-line-soft bg-raised px-2 py-0.5 text-[11px] text-faint">
+                      Tier {turn.tier}
+                    </span>
+                  </p>
+                  {active && (
+                    <span className="shrink-0 rounded-full bg-accent/15 px-2.5 py-0.5 text-[11px] font-semibold text-accent">
+                      Active
+                    </span>
+                  )}
+                </div>
+
+                <h2 dir="auto" className="mt-2.5 max-w-[62ch] text-lg font-medium leading-snug tracking-normal text-fg">
+                  {turn.question}
+                </h2>
+
+                <Body
+                  turn={turn}
+                  active={active}
+                  cite={cite}
+                  onCite={(n) => onCite(turn.key, n)}
+                  onRetry={() => onRetry(turn)}
+                  onStop={onStop}
+                />
+
+                <Facts turn={turn} />
+              </article>
+            </ProximityGlow>
           </li>
         );
       })}

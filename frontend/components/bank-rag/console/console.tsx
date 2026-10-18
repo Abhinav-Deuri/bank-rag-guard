@@ -9,10 +9,12 @@ import { useAudit } from "@/hooks/use-audit";
 import { useUsers } from "@/hooks/use-users";
 import { useTheme } from "@/components/bank-rag/theme-provider";
 import { BrandMark } from "@/components/bank-rag/brand-mark";
+import { ProximityGlow } from "@/components/bank-rag/landing/proximity-glow";
 import { codePointLength, cn } from "@/lib/utils";
 import { SourcesPane } from "./sources-pane";
 import { AuditLog } from "./audit-log";
-import { Thread, type Turn } from "./thread";
+import { Thread, tierRange, type Turn } from "./thread";
+import { PanelRightClose, PanelRightOpen, GripVertical } from "lucide-react";
 
 type Pane = "answers" | "sources" | "audit";
 
@@ -49,6 +51,105 @@ export function Console() {
   const controller = useRef<AbortController | null>(null);
   const refreshAudit = audit.refresh;
 
+  // Resizable & Collapsible sidebar state with lazy initialization
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return 460;
+    try {
+      const savedWidth = localStorage.getItem("bankrag_sidebar_width");
+      if (savedWidth) {
+        const w = parseInt(savedWidth, 10);
+        if (!isNaN(w) && w >= 320 && w <= 760) return w;
+      }
+    } catch {}
+    return 460;
+  });
+
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const savedCollapsed = localStorage.getItem("bankrag_sidebar_collapsed");
+      if (savedCollapsed !== null) return savedCollapsed === "true";
+    } catch {}
+    return false;
+  });
+
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [isDesktop, setIsDesktop] = useState<boolean>(true);
+  const sidebarWidthRef = useRef(sidebarWidth);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    sidebarWidthRef.current = sidebarWidth;
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 1024);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Save changes to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("bankrag_sidebar_width", String(sidebarWidth));
+    } catch {}
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("bankrag_sidebar_collapsed", String(isCollapsed));
+    } catch {}
+  }, [isCollapsed]);
+
+  // Keyboard shortcut Ctrl+B or Cmd+B to toggle sidebar collapse
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "b" || e.key === "B")) {
+        e.preventDefault();
+        setIsCollapsed((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+
+    const startX = e.clientX;
+    const startWidth = sidebarWidthRef.current;
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      moveEvent.preventDefault();
+      const deltaX = startX - moveEvent.clientX;
+      const newWidth = startWidth + deltaX;
+      const containerWidth = containerRef.current?.getBoundingClientRect().width ?? window.innerWidth;
+      const minW = 320;
+      const maxW = Math.max(minW, Math.min(760, containerWidth - 420));
+      const clampedWidth = Math.round(Math.min(Math.max(newWidth, minW), maxW));
+      setSidebarWidth(clampedWidth);
+    };
+
+    const onPointerUp = (upEvent: PointerEvent) => {
+      upEvent.preventDefault();
+      setIsDragging(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+  }, []);
+
   const pending = turns.find((t) => t.status === "pending") ?? null;
   const active = turns.find((t) => t.key === activeKey) ?? turns[turns.length - 1] ?? null;
   const length = codePointLength(draft.trim());
@@ -56,6 +157,18 @@ export function Console() {
   const canAsk = Boolean(me) && !pending && length > 0 && !tooLong;
 
   useEffect(() => () => controller.current?.abort(), []);
+
+  const threadScrollRef = useRef<HTMLDivElement>(null);
+
+  const lastTurnStatus = turns[turns.length - 1]?.status;
+  useEffect(() => {
+    if (turns.length) {
+      const el = threadScrollRef.current;
+      if (el) {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      }
+    }
+  }, [turns.length, lastTurnStatus]);
 
   const ask = useCallback(
     async (user: DemoUser, question: string) => {
@@ -101,7 +214,11 @@ export function Console() {
   const pickCite = (turnKey: number, n: number) => {
     setActiveKey(turnKey);
     setCite(n);
-    if (isNarrow()) setPane("sources");
+    if (isNarrow()) {
+      setPane("sources");
+    } else if (isCollapsed) {
+      setIsCollapsed(false);
+    }
   };
 
   const selectTurn = (turnKey: number) => {
@@ -119,8 +236,8 @@ export function Console() {
   ];
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <header className="flex min-h-14 flex-wrap items-center gap-x-7 gap-y-1 border-b border-line bg-bg px-4 sm:px-6">
+    <div className="flex h-dvh flex-col overflow-hidden bg-bg text-fg">
+      <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-x-7 gap-y-1 border-b border-line bg-bg px-4 sm:px-6 z-10">
         <Link href="/" className="inline-flex items-center gap-2 py-2 font-medium" aria-label="Bank RAG Guard overview">
           <BrandMark className="size-6 text-fg" />
           Bank RAG Guard
@@ -164,13 +281,22 @@ export function Console() {
               })}
             </span>
           )}
+          <button
+            type="button"
+            onClick={() => setIsCollapsed((prev) => !prev)}
+            className="hidden lg:inline-flex items-center gap-1.5 rounded-lg border border-line-soft bg-surface/60 px-2.5 py-1.5 text-xs text-dim hover:text-fg hover:border-accent/60 hover:bg-surface transition-all cursor-pointer"
+            title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+          >
+            {isCollapsed ? <PanelRightOpen className="size-4 text-accent" /> : <PanelRightClose className="size-4" />}
+            <span>{isCollapsed ? "Show context" : "Hide context"}</span>
+          </button>
           <button type="button" onClick={toggleTheme} className="min-h-11 text-dim hover:text-fg">
             {theme === "dark" ? "Light theme" : "Dark theme"}
           </button>
         </div>
       </header>
 
-      <nav aria-label="Sections" className="flex gap-6 border-b border-line-soft px-4 text-sm lg:hidden">
+      <nav aria-label="Sections" className="flex shrink-0 gap-6 border-b border-line-soft px-4 text-sm lg:hidden z-10">
         {paneTabs.map((p) => (
           <button
             key={p.id}
@@ -184,87 +310,159 @@ export function Console() {
         ))}
       </nav>
 
-      <div className="flex flex-1 flex-wrap items-stretch">
+      <div ref={containerRef} className={cn("flex flex-1 min-h-0 overflow-hidden relative", isDragging && "select-none")}>
         <main
           id="main"
           className={cn(
-            "min-w-0 flex-[999_1_620px] flex-col px-4 pb-6 pt-5 sm:px-10 sm:pt-7",
+            "flex min-w-0 flex-1 flex-col h-full min-h-0 relative",
             pane === "answers" ? "flex" : "hidden lg:flex",
           )}
         >
-          {usersState.status === "error" && (
-            <div role="alert" className="mb-6 max-w-[64ch]">
-              <p className="font-medium text-bad">Can’t load the demo users.</p>
-              <p className="mt-1 text-dim">{usersState.error.message}</p>
-              <button type="button" onClick={reloadUsers} className="mt-2 text-sm text-accent underline underline-offset-4">
-                Try again
+          {/* Floating expand button when sidebar is collapsed (desktop only) */}
+          {isCollapsed && isDesktop && (
+            <div className="absolute right-5 top-3.5 z-20 animate-in fade-in duration-200">
+              <button
+                type="button"
+                onClick={() => setIsCollapsed(false)}
+                className="inline-flex items-center gap-2 rounded-xl border border-line-soft bg-surface/90 px-3.5 py-1.5 text-xs font-medium text-fg shadow-lg backdrop-blur-md transition-all hover:border-accent hover:bg-surface active:scale-95 cursor-pointer group"
+                title="Expand sources & audit log (Ctrl+B)"
+              >
+                <PanelRightOpen className="size-4 text-accent group-hover:scale-110 transition-transform" />
+                <span>Sources & Audit</span>
+                {sourceCount > 0 && (
+                  <span className="rounded-full bg-accent/20 px-1.5 py-0.2 text-[10px] font-semibold text-accent">
+                    {sourceCount}
+                  </span>
+                )}
               </button>
             </div>
           )}
-          {usersState.status === "empty" && (
-            <p className="mb-6 text-dim">The backend has no demo users yet. Run notebook 02 to create them.</p>
-          )}
 
-          {turns.length === 0 && me && (
-            <div className="max-w-[60ch] pb-7 text-dim">
-              <p className="text-lg text-fg">Nothing asked yet as {me.username}.</p>
-              <p className="mt-1.5">
-                The assistant answers from customer notes, contracts and internal email at your clearance. Ask below, in
-                English or Arabic.
-              </p>
-            </div>
-          )}
+          {/* Internal scrollable thread messages container */}
+          <div
+            ref={threadScrollRef}
+            className="flex-1 min-h-0 overflow-y-auto px-4 pb-6 pt-5 sm:px-10 sm:pt-7"
+          >
+            {usersState.status === "error" && (
+              <div role="alert" className="mb-6 max-w-[64ch]">
+                <p className="font-medium text-bad">Can’t load the demo users.</p>
+                <p className="mt-1 text-dim">{usersState.error.message}</p>
+                <button type="button" onClick={reloadUsers} className="mt-2 text-sm text-accent underline underline-offset-4">
+                  Try again
+                </button>
+              </div>
+            )}
+            {usersState.status === "empty" && (
+              <p className="mb-6 text-dim">The backend has no demo users yet. Run notebook 02 to create them.</p>
+            )}
 
-          <Thread
-            turns={turns}
-            activeKey={active?.key ?? null}
-            cite={cite}
-            maxTier={maxTier}
-            onSelect={selectTurn}
-            onCite={pickCite}
-            onRetry={(t) => {
-              const user = users.find((u) => u.username === t.username);
-              if (user && !pending) void ask(user, t.question);
-            }}
-            onStop={() => controller.current?.abort()}
-          />
+            {turns.length === 0 && me && (
+              <ProximityGlow
+                range={80}
+                className="mb-6 border-line-soft!"
+                edgeSensitivity={30}
+                glowColor="215 85 72"
+                backgroundColor="var(--ink-900)"
+                borderRadius={20}
+                glowRadius={56}
+                glowIntensity={1.0}
+                coneSpread={25}
+                animated={false}
+                colors={["#1e3fd8", "#38bdf8", "#a5d8ff"]}
+              >
+                <div className="p-6 sm:p-7">
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span className="inline-block rounded-full border border-warn/40 bg-warn/10 px-2.5 py-0.5 text-xs font-medium text-warn">
+                      Demo Persona: {me.username}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">
+                      <span className="size-1.5 rounded-full bg-accent animate-pulse" />
+                      Clearance: Tier {me.tier}
+                    </span>
+                  </div>
+                  <h2 className="text-xl font-semibold tracking-tight text-fg">
+                    Zero-Leakage Document Review Console
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-dim max-w-[62ch]">
+                    Ask about customer cases, contracts and internal banking documents.
+                    Text above your clearance ({tierRange(me.tier)}) is filtered at the database query level, and personal data is automatically masked with cryptographic SHA-256 integrity verification.
+                  </p>
+                </div>
+              </ProximityGlow>
+            )}
 
+            <Thread
+              turns={turns}
+              activeKey={active?.key ?? null}
+              cite={cite}
+              maxTier={maxTier}
+              onSelect={selectTurn}
+              onCite={pickCite}
+              onRetry={(t) => {
+                const user = users.find((u) => u.username === t.username);
+                if (user && !pending) void ask(user, t.question);
+              }}
+              onStop={() => controller.current?.abort()}
+            />
+          </div>
+
+          {/* DOCKED / PINNED PROMPT FORM: Stays anchored at the bottom */}
           <form
-            className="mt-auto pt-6"
+            className="shrink-0 border-t border-line-soft bg-bg px-4 py-3 sm:px-10"
             onSubmit={(e) => {
               e.preventDefault();
               submit();
             }}
           >
-            <label htmlFor="question" className="mb-1.5 block text-[13px] text-dim">
-              {me ? `Question as ${me.username}` : "Question"}
-            </label>
-            <div className="flex items-stretch gap-2.5">
-              <textarea
-                id="question"
-                dir="auto"
-                rows={2}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    submit();
-                  }
-                }}
-                placeholder="Ask about customer cases, contracts or email"
-                aria-describedby="question-help"
-                aria-invalid={tooLong}
-                className="min-w-0 flex-1 resize-y rounded border border-line bg-panel px-3 py-2.5 text-[15px] text-fg placeholder:text-faint focus-visible:outline-offset-0"
-              />
-              <button
-                type="submit"
-                disabled={!canAsk}
-                className="min-w-24 rounded bg-accent px-5 font-medium text-bg disabled:opacity-50"
-              >
-                {pending ? "Waiting…" : "Ask"}
-              </button>
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="question" className="block text-[13px] text-dim">
+                {me ? `Question as ${me.username}` : "Question"}
+              </label>
+              <span className={cn("num text-xs", tooLong ? "text-bad" : "text-faint")}>
+                {codePointLength(draft)}/{MAX_QUESTION_LENGTH}
+                <span className="sr-only"> characters. Press Enter to ask, Shift+Enter for a new line.</span>
+              </span>
             </div>
+            <ProximityGlow
+              range={60}
+              className="border-line-soft!"
+              edgeSensitivity={30}
+              glowColor="215 85 72"
+              backgroundColor="var(--ink-900)"
+              borderRadius={16}
+              glowRadius={44}
+              glowIntensity={1.0}
+              coneSpread={25}
+              animated={false}
+              colors={["#1e3fd8", "#38bdf8", "#a5d8ff"]}
+            >
+              <div className="flex w-full items-stretch p-1.5 gap-2">
+                <textarea
+                  id="question"
+                  dir="auto"
+                  rows={2}
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      submit();
+                    }
+                  }}
+                  placeholder="Ask about customer cases, contracts or email (Enter to send, Shift+Enter for new line)"
+                  aria-describedby="question-help"
+                  aria-invalid={tooLong}
+                  className="min-w-0 flex-1 resize-none bg-transparent px-3 py-2 text-[15px] text-fg placeholder:text-faint outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={!canAsk}
+                  className="self-stretch rounded-xl bg-accent px-5 font-semibold text-bg disabled:opacity-50 transition-all hover:bg-accent/90 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {pending ? "Waiting…" : "Ask"}
+                </button>
+              </div>
+            </ProximityGlow>
             <div id="question-help" className="mt-2 flex flex-wrap justify-between gap-x-4 gap-y-1.5 text-[13px] text-faint">
               <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
                 <span>Try</span>
@@ -279,25 +477,96 @@ export function Console() {
                   </button>
                 ))}
               </div>
-              <span className={cn("num", tooLong && "text-bad")}>
-                {codePointLength(draft)}/{MAX_QUESTION_LENGTH}
-                <span className="sr-only"> characters. Press Control and Enter to ask.</span>
-              </span>
             </div>
           </form>
         </main>
 
-        <aside className="flex min-w-0 flex-[1_1_440px] flex-col border-line bg-panel lg:border-s">
-          <div className={cn(pane === "sources" ? "block" : "hidden lg:block")}>
+        {/* Drag handle / Splitter between main chat and sidebar (desktop only) */}
+        {!isCollapsed && isDesktop && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            tabIndex={0}
+            onPointerDown={handlePointerDown}
+            onDoubleClick={() => setSidebarWidth(460)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft") setSidebarWidth((w) => Math.min(760, w + 24));
+              if (e.key === "ArrowRight") setSidebarWidth((w) => Math.max(320, w - 24));
+            }}
+            style={{ touchAction: "none" }}
+            className={cn(
+              "hidden lg:flex relative items-center justify-center shrink-0 w-2 hover:w-2.5 bg-line/50 hover:bg-accent active:bg-accent cursor-col-resize select-none z-30 transition-all",
+              isDragging && "bg-accent shadow-[0_0_12px_rgba(56,189,248,0.7)] w-2.5",
+            )}
+            title="Drag to resize sidebar (double-click to reset, Ctrl+B to collapse)"
+          >
+            {/* Expanded invisible hit-area */}
+            <div className="absolute inset-y-0 -left-2 -right-2 cursor-col-resize z-10" />
+            {/* Center indicator pill */}
+            <div
+              className={cn(
+                "pointer-events-none z-20 flex flex-col items-center justify-center rounded-full bg-line-soft py-3 px-0.5 transition-all group-hover:bg-accent group-hover:scale-110",
+                isDragging && "bg-accent scale-110",
+              )}
+            >
+              <GripVertical className="size-3.5 text-faint group-hover:text-bg" />
+            </div>
+          </div>
+        )}
+
+        {/* Independent scrollable sidebar */}
+        <aside
+          style={
+            isDesktop
+              ? {
+                  width: isCollapsed ? 0 : `${sidebarWidth}px`,
+                  maxWidth: isCollapsed ? 0 : `${sidebarWidth}px`,
+                  minWidth: isCollapsed ? 0 : "320px",
+                  flex: isCollapsed ? "0 0 0px" : `0 0 ${sidebarWidth}px`,
+                  overflowY: isCollapsed ? "hidden" : "auto",
+                  overflowX: "hidden",
+                  borderLeftWidth: isCollapsed ? 0 : undefined,
+                  opacity: isCollapsed ? 0 : 1,
+                  pointerEvents: isCollapsed ? "none" : "auto",
+                  transition: isDragging
+                    ? "none"
+                    : "width 220ms cubic-bezier(0.16, 1, 0.3, 1), max-width 220ms cubic-bezier(0.16, 1, 0.3, 1), flex-basis 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease",
+                }
+              : undefined
+          }
+          className={cn(
+            "flex min-w-0 flex-col border-line bg-panel lg:border-s",
+            pane === "answers" ? "hidden lg:flex" : "flex w-full flex-1 overflow-y-auto",
+            isDesktop && isCollapsed && "lg:hidden",
+          )}
+        >
+          {/* Top header of sidebar with collapse button (desktop only) */}
+          <div className="hidden lg:flex items-center justify-between border-b border-line px-4 py-2.5 text-xs text-faint bg-panel shrink-0">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-dim">
+              {sourceCount ? `Context & Verification (${sourceCount})` : "Context & Verification"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsCollapsed(true)}
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-dim hover:bg-surface hover:text-fg hover:border-line-soft border border-transparent transition-colors cursor-pointer"
+              title="Collapse sidebar (Ctrl+B)"
+              aria-label="Collapse sidebar"
+            >
+              <PanelRightClose className="size-3.5" />
+              <span className="text-[11px]">Collapse</span>
+            </button>
+          </div>
+          <div className={cn("min-w-0 w-full overflow-hidden", pane === "sources" ? "block" : "hidden lg:block")}>
             <SourcesPane turn={active} cite={cite} onCite={setCite} maxTier={maxTier} />
           </div>
-          <div className={cn("flex-1", pane === "audit" ? "flex" : "hidden lg:flex")}>
+          <div className={cn("min-w-0 w-full overflow-hidden flex-1", pane === "audit" ? "flex" : "hidden lg:flex")}>
             <AuditLog audit={audit} />
           </div>
         </aside>
       </div>
 
-      <footer className="border-t border-line-soft px-4 py-3 text-xs text-faint sm:px-6">
+      <footer className="shrink-0 border-t border-line-soft px-4 py-2.5 text-xs text-faint sm:px-6 bg-bg">
         Demo identities have no password. Customer records are synthetic; contracts and email come from public datasets.
       </footer>
     </div>
