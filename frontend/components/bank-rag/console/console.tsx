@@ -87,6 +87,10 @@ const COMMANDS: { cmd: string; does: string }[] = [
   { cmd: "boot", does: "Play the start-up checks again." },
 ];
 
+/** Greetings and thanks, in English and Arabic, answered without a document search. */
+const SMALL_TALK =
+  /^(hi+|hello|hey+|hiya|yo|good (morning|afternoon|evening)|thanks?( you)?|thank you|thx|ok(ay)?|salam|assalamu? ?alaikum|marhaba|مرحب[اًا]?|أهلا|اهلا|السلام عليكم|سلام|شكرا|شكراً)[\s!.,؟?]*$/i;
+
 /** Function keys. None of these clash with browser keys people rely on (F3 find, F5 reload, F11, F12). */
 const KEYS = [
   { key: "F1", label: "Help", cmd: "help" },
@@ -443,6 +447,25 @@ export function Console() {
           tone: "info",
           text: "Screen cleared. The audit log still has every entry.",
         });
+      } else if (SMALL_TALK.test(text)) {
+        // A greeting or thanks is not a question about the documents, so it is answered here rather than
+        // sent through the search: a search would pull five unrelated passages and count their customers.
+        note(
+          text,
+          <p className="mt-1 max-w-[72ch] text-dim">
+            {/[\u0600-\u06FF]/.test(text) ? (
+              <span dir="rtl">
+                أهلاً. اسأل عن الشكاوى أو العقود أو البريد الداخلي، وسأجيب من المستندات المسموح لك بقراءتها فقط.
+              </span>
+            ) : (
+              <>
+                Hello{me ? `, ${me.username}` : ""}. Ask about customer complaints, contracts or internal email and I’ll
+                answer from the documents you’re cleared to read.
+              </>
+            )}
+          </p>,
+        );
+        setMessage(null);
       } else {
         if (!me) return;
         if (pending) {
