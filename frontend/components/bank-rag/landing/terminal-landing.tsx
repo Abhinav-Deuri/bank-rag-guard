@@ -157,6 +157,10 @@ const LIMITS: { title: string; body: string }[] = [
     body: "IBANs, Emirates IDs and cards are checked by checksum and are reliable. On our unseen English test set the name finder catches about two names in three. Clearance never depends on masking: restricted text is filtered out in the database first.",
   },
   {
+    title: "The interface is in English",
+    body: "Questions, documents and answers work in English and Arabic, and the guard was tested on Arabizi too. Menus and labels are not translated yet.",
+  },
+  {
     title: "Masked text uses outside services here",
     body: "Masked questions and passages go to Jina for search and Groq for the language model. Running both models on the same LinuxONE system is the production plan, not today's setup.",
   },

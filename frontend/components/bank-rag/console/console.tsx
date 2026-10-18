@@ -14,7 +14,6 @@ import { AuditLog } from "./audit-log";
 import { Thread, tierRange, type NextStep, type Turn } from "./thread";
 import { RevealPanel, type RevealDraft } from "./reveal-panel";
 import { BootScreen } from "./boot-screen";
-import { TermCursor } from "@/components/bank-rag/term-cursor";
 import type { RevealProps } from "./redacted";
 
 /*
@@ -42,6 +41,8 @@ const COMMANDS: { cmd: string; does: string }[] = [
   { cmd: "examples", does: "Questions worth trying." },
   { cmd: "verify", does: "Re-check every entry in the audit log against its fingerprint." },
   { cmd: "clear", does: "Clear the session on this screen. The audit log keeps everything." },
+  { cmd: "view plain", does: "Light background and a normal font for long reading. view terminal switches back." },
+  { cmd: "boot", does: "Play the start-up checks again." },
 ];
 
 /** Function keys. None of these clash with browser keys people rely on (F3 find, F5 reload, F11, F12). */
@@ -52,6 +53,17 @@ const KEYS = [
   { key: "F9", label: "Examples", cmd: "examples" },
   { key: "F10", label: "Clear", cmd: "clear" },
 ] as const;
+
+/** Plain reading view: a class on <html>, remembered per browser (the root layout's inline script
+ * restores it before paint, so there is no flash and no React state to keep in sync). */
+function setView(plain: boolean) {
+  document.documentElement.classList.toggle("view-plain", plain);
+  try {
+    window.localStorage.setItem("aegis-view", plain ? "plain" : "terminal");
+  } catch {
+    /* storage blocked: the choice lasts until the page is reloaded */
+  }
+}
 
 function isNarrow() {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
@@ -288,6 +300,15 @@ export function Console() {
         refreshAudit();
         setMessage({ tone: "info", text: "Checking every audit entry against its fingerprint. Result in the Audit log panel." });
         if (isNarrow()) setPane("audit");
+      } else if (/^view$/i.test(word) && /^(plain|terminal)$/i.test(rest[0] ?? "") && rest.length === 1) {
+        setView(rest[0].toLowerCase() === "plain");
+      } else if (cmd === "boot") {
+        try {
+          window.localStorage.removeItem("aegis-boot-seen");
+        } catch {
+          /* storage blocked: the start-up screen plays on every load anyway */
+        }
+        window.location.reload();
       } else if (cmd === "clear" || cmd === "cls") {
         if (pending) {
           setMessage({ tone: "warn", text: "Wait for the current answer before clearing." });
@@ -419,7 +440,6 @@ export function Console() {
 
   return (
     <div className="term flex h-dvh flex-col overflow-hidden text-fg">
-      <TermCursor />
       <BootScreen users={usersState} audit={audit} />
       {/* Title line */}
       <header className="flex shrink-0 flex-wrap items-baseline gap-x-6 gap-y-1 border-b border-line px-3 py-2 sm:px-5">
@@ -443,7 +463,7 @@ export function Console() {
                 title={pending ? "Wait for the current answer before switching" : `${u.role}, tier ${u.tier}`}
                 className={cn(
                   "px-1 disabled:cursor-not-allowed",
-                  on ? "bg-fg text-black" : "text-dim hover:text-fg",
+                  on ? "bg-fg text-bg" : "text-dim hover:text-fg",
                 )}
               >
                 {u.username}
@@ -469,7 +489,15 @@ export function Console() {
           </span>
         )}
 
-        <span className="ms-auto flex items-baseline gap-x-2">
+        <button
+          type="button"
+          onClick={() => setView(!document.documentElement.classList.contains("view-plain"))}
+          className="ms-auto text-dim underline decoration-line underline-offset-4 hover:text-fg"
+        >
+          <span className="when-terminal">Plain view</span>
+          <span className="when-plain">Terminal view</span>
+        </button>
+        <span className="flex items-baseline gap-x-2">
           <span className="text-accent">Log</span>
           {chain ? (
             <span className={cn("num", chain.ok ? "text-ok" : "text-bad")}>
@@ -488,7 +516,7 @@ export function Console() {
             type="button"
             aria-pressed={pane === p.id}
             onClick={() => setPane(p.id)}
-            className={cn("py-2", pane === p.id ? "bg-fg px-1 text-black" : "px-1 text-dim")}
+            className={cn("py-2", pane === p.id ? "bg-fg px-1 text-bg" : "px-1 text-dim")}
           >
             {p.label}
           </button>

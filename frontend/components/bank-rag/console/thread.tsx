@@ -53,10 +53,15 @@ interface Step {
   status: Status;
   stage: string;
   detail: string;
+  /** Plain-language explanation, shown on hover. */
+  hint?: string;
 }
 
 const TAG: Record<Status, string> = { ok: "[ OK ]", fail: "[FAIL]", warn: "[WARN]", skip: "[SKIP]" };
 const TONE: Record<Status, string> = { ok: "text-ok", fail: "text-bad", warn: "text-warn", skip: "text-faint" };
+
+const MOSAIC_HINT =
+  "Counts how many different customers\u2019 records reached this person\u2019s answers in the last hour. Many small answers can add up to more than any one shows, so crossing the limit writes a review alert.";
 
 export function stepsFor(r: AskResponse, maxTier: number): Step[] {
   const logged: Step = {
@@ -107,8 +112,14 @@ export function stepsFor(r: AskResponse, maxTier: number): Step[] {
             status: "warn",
             stage: "Mosaic check",
             detail: `${m.customers_last_hour} different customers this hour (limit ${m.limit}); review alert logged`,
+            hint: MOSAIC_HINT,
           }
-        : { status: "ok", stage: "Mosaic check", detail: `${m.customers_last_hour} of ${m.limit} customers this hour` },
+        : {
+            status: "ok",
+            stage: "Mosaic check",
+            detail: `${m.customers_last_hour} of ${m.limit} different customers this hour`,
+            hint: MOSAIC_HINT,
+          },
     );
   }
   steps.push(logged);
@@ -125,7 +136,9 @@ function Trace({ steps, animate }: { steps: Step[]; animate: boolean }) {
           style={animate ? ({ "--i": i } as CSSProperties) : undefined}
         >
           <span className={cn("whitespace-pre", TONE[s.status])}>{TAG[s.status]}</span>
-          <span className="text-accent max-sm:hidden">{s.stage}</span>
+          <span className="text-accent max-sm:hidden" title={s.hint}>
+            {s.stage}
+          </span>
           <span className={s.status === "skip" ? "text-faint" : "text-dim"}>
             <span className="text-accent sm:hidden">{s.stage}: </span>
             {s.detail}
@@ -220,14 +233,14 @@ function Answer({
   if (!r) return null;
 
   if (r.blocked) {
-    return <p className="mt-3 max-w-[76ch] text-fg">{r.answer}</p>;
+    return <p className="term-answer mt-3 max-w-[76ch] text-fg">{r.answer}</p>;
   }
 
   // With no sources the model had nothing to answer from; its wording ("not available at your
   // access level") would hint that restricted documents exist, so show a neutral line instead.
   if (r.sources.length === 0) {
     return (
-      <p className="mt-3 max-w-[76ch]">
+      <p className="term-answer mt-3 max-w-[76ch]">
         No documents at {turn.username}’s clearance matched this question.{" "}
         <span className="text-dim">Ask a colleague who has access if you need it.</span>
       </p>
@@ -237,7 +250,7 @@ function Answer({
   return (
     <Redacted
       text={r.answer}
-      className="mt-3 max-w-[76ch] text-fg"
+      className="term-answer mt-3 max-w-[76ch] text-fg"
       cite={{ count: r.sources.length, selected: active ? cite : null, onCite }}
       reveal={reveal}
     />

@@ -13,16 +13,16 @@ const SEEN_KEY = "aegis-boot-seen";
 
 function seenBefore() {
   try {
-    return window.sessionStorage.getItem(SEEN_KEY) === "1";
+    return window.localStorage.getItem(SEEN_KEY) === "1";
   } catch {
     return false;
   }
 }
 function markSeen() {
   try {
-    window.sessionStorage.setItem(SEEN_KEY, "1");
+    window.localStorage.setItem(SEEN_KEY, "1");
   } catch {
-    /* private mode or storage blocked: the boot just plays in full again */
+    /* private mode or storage blocked: the start-up screen just plays again next time */
   }
 }
 
@@ -53,7 +53,8 @@ function Banner() {
  * The workspace's start-up screen. The screen powers on like a CRT, then prints real checks: the
  * backend answering, the demo identities loading, and the whole audit chain being verified, with
  * the numbers that came back. A failure stops on [FAIL] instead of hiding it.
- * Any key or click skips it. It is quicker on later visits in the same tab session, and plain
+ * Any key or click skips it. It plays once per browser (an inline script in the root layout hides it before paint on later
+ * visits; the boot command replays it), and is plain
  * (no power-on effect) with reduced motion.
  */
 export function BootScreen({ users, audit }: { users: UsersState; audit: Audit }) {
