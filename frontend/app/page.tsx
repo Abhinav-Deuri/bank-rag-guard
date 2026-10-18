@@ -1,23 +1,8 @@
-import { FinalCta } from "@/components/bank-rag/landing/final-cta";
-import { Features } from "@/components/bank-rag/landing/features";
-import { HowItWorks } from "@/components/bank-rag/landing/how-it-works";
-import { SiteFooter } from "@/components/bank-rag/landing/site-footer";
-import { SiteNav } from "@/components/bank-rag/landing/site-nav";
-import { StaticHero } from "@/components/bank-rag/landing/static-hero";
-import { Transparency } from "@/components/bank-rag/landing/transparency";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/600.css";
+import "@fontsource/ibm-plex-sans-arabic/400.css";
+import { TerminalLanding } from "@/components/bank-rag/landing/terminal-landing";
 
 export default function Home() {
-  return (
-    <>
-      <SiteNav />
-      <main id="main" className="flex-1">
-        <StaticHero />
-        <Features />
-        <HowItWorks />
-        <Transparency />
-        <FinalCta />
-      </main>
-      <SiteFooter />
-    </>
-  );
+  return <TerminalLanding />;
 }

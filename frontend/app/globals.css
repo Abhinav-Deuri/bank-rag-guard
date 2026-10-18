@@ -521,3 +521,27 @@
   box-shadow: inset 2px 0 0 var(--accent);
   padding-inline-start: 0.6rem;
 }
+/* Landing: the session replay plays once, line by line. */
+.term-replay {
+  animation: term-line-in 0.3s var(--ease-out) both;
+  animation-delay: calc(0.3s + var(--i, 0) * 0.22s);
+}
+@media (prefers-reduced-motion: reduce) {
+  .term-replay {
+    animation: none;
+  }
+}
+/* The main call to action: a highlighted (reverse video) field. */
+.term-key-primary {
+  background: var(--fg);
+  color: #000;
+  padding-inline: 0.25ch;
+}
+.term-key-primary::before,
+.term-key-primary::after {
+  color: #000;
+}
+.term-key-primary:hover,
+.term-key-primary:focus-visible {
+  background: var(--ok);
+}
