@@ -34,13 +34,13 @@ const log = [
 ];
 
 const SOURCES_T1 = [
-  { id: 811, source: "synthetic_customer_notes", tier: 1, score: 0.812, text: "Customer [NAME] reported a disputed card transaction on 14 March. The charge of AED 1,240 appeared on card ending [CARD]. Account [IBAN] was flagged for review and the customer was contacted on [PHONE]." },
-  { id: 90, source: "synthetic_customer_notes", tier: 1, score: 0.781, text: "شكوى من العميل [NAME] بخصوص معاملة متنازع عليها بقيمة 980 درهم. تم تسجيل الحساب [IBAN] وإحالة الطلب إلى فريق المعاملات." },
-  { id: 4, source: "enron_email/shackleton-s/inbox/12", tier: 1, score: 0.642, text: "Please confirm whether the disputed invoice was settled before the quarter close. Forward to [NAME] if the payment reference cannot be found." },
+  { id: 811, source: "synthetic_customer_notes", tier: 1, score: 0.812, text: "Customer [NAME_1] reported a disputed card transaction on 14 March. The charge of AED 1,240 appeared on card ending [CARD_1]. Account [IBAN_1] was flagged for review and the customer was contacted on [PHONE_1]." },
+  { id: 90, source: "synthetic_customer_notes", tier: 1, score: 0.781, text: "شكوى من العميل [NAME_2] بخصوص معاملة متنازع عليها بقيمة 980 درهم. تم تسجيل الحساب [IBAN_2] وإحالة الطلب إلى فريق المعاملات." },
+  { id: 4, source: "enron_email/shackleton-s/inbox/12", tier: 1, score: 0.642, text: "Please confirm whether the disputed invoice was settled before the quarter close. Forward to [NAME_3] if the payment reference cannot be found." },
 ];
 const SOURCES_T3 = [
   { id: 1203, source: "cuad/ServicesAgreement_Redwood", tier: 3, score: 0.874, text: "Either party may terminate this Agreement upon thirty (30) days' written notice. Each party shall keep the other's Confidential Information confidential for five (5) years after termination." },
-  { id: 1190, source: "cuad/LicenseAgreement_Northgate", tier: 2, score: 0.833, text: "Confidentiality obligations survive expiration or termination. Disclosure is permitted where required by law, provided the disclosing party gives prompt notice to [NAME]." },
+  { id: 1190, source: "cuad/LicenseAgreement_Northgate", tier: 2, score: 0.833, text: "Confidentiality obligations survive expiration or termination. Disclosure is permitted where required by law, provided the disclosing party gives prompt notice to [NAME_1]." },
 ];
 
 // Fake fingerprints so the audit table has something to link; the real ones come from audit.py.
@@ -56,10 +56,23 @@ const fakeHash = (n) => {
 const withChain = (entries) =>
   entries.map((e) => ({
     ...e,
-    ts: new Date(Date.UTC(2026, 9, 17, 13, 0, 0) + e.id * 47_000).toISOString(),
+    ts: new Date(Date.now() - (state.counter - e.id) * 47_000).toISOString(),
     hash: fakeHash(e.id),
     prev_hash: fakeHash(e.id - 1),
   }));
+
+// Sample values behind the tokens, standing in for the real passages the backend re-masks on reveal.
+const VALUES_T1 = { NAME_1: "Fatima Al Mansoori", CARD_1: "4111 1111 1111 1111", IBAN_1: "AE07 0331 2345 6789 0123 456", PHONE_1: "+971 50 123 4567", NAME_2: "مريم الشامسي", IBAN_2: "AE46 0260 0012 3456 7890 101", NAME_3: "Sara Shackleton" };
+const VALUES_T3 = { NAME_1: "Omar Haddad" };
+const answers = new Map();          // answer_id -> { user, values }
+const requests = [];                // reveal requests
+const REQUESTERS = new Set(["compliance"]);
+const APPROVERS = new Set(["compliance", "auditor"]);
+const audit = (actor, action, details) => {
+  state.counter += 1;
+  log.unshift({ id: state.counter, actor, action, details: JSON.stringify(details) });
+  log.length = Math.min(log.length, 12);
+};
 
 const json = (res, status, body) => {
   res.writeHead(status, { "content-type": "application/json" });
@@ -138,26 +151,80 @@ createServer(async (req, res) => {
     const contracts = /contract|termination|confidential/i.test(q);
     if (contracts && user.tier < 2) {
       // The backend searches only tier-1 passages for a teller and returns the best ones; none is a contract.
-      return json(res, 200, { username: user.username, tier: user.tier, blocked: false, answer: "The documents provided do not contain information about contract termination or confidentiality.", dropped_passages: 0, masked_in_context: { NAME: 3, IBAN: 2, CARD: 1, PHONE: 1 }, masked_in_answer: {}, learned_attacks_count: 0, sources: SOURCES_T1 });
+      answers.set(state.counter, { user: user.username, values: VALUES_T1 });
+      return json(res, 200, { username: user.username, tier: user.tier, blocked: false, answer_id: state.counter, answer: "The documents provided do not contain information about contract termination or confidentiality.", dropped_passages: 0, masked_in_context: { NAME: 3, IBAN: 2, CARD: 1, PHONE: 1 }, masked_in_answer: {}, learned_attacks_count: 0, sources: SOURCES_T1 });
     }
     if (contracts) {
-      return json(res, 200, { username: user.username, tier: user.tier, blocked: false, answer: "The contracts allow either party to terminate with thirty days' written notice. Confidentiality obligations last five years after termination and survive expiry, with a carve-out for disclosures required by law (notice goes to [NAME]).\n\nSources 1 and 2 support this.", dropped_passages: 1, masked_in_context: { NAME: 1 }, masked_in_answer: {}, learned_attacks_count: 1, sources: SOURCES_T3 });
+      answers.set(state.counter, { user: user.username, values: VALUES_T3 });
+      return json(res, 200, { username: user.username, tier: user.tier, blocked: false, answer_id: state.counter, answer: "The contracts allow either party to terminate with thirty days' written notice. Confidentiality obligations last five years after termination and survive expiry, with a carve-out for disclosures required by law (notice goes to [NAME_1]).\n\nSources 1 and 2 support this.", dropped_passages: 1, masked_in_context: { NAME: 1 }, masked_in_answer: {}, learned_attacks_count: 1, sources: SOURCES_T3 });
     }
     const arabic = /[؀-ۿ]/.test(q);
     const sources = q.includes("__nosources__") ? [] : SOURCES_T1;
+    answers.set(state.counter, { user: user.username, values: VALUES_T1 });
     return json(res, 200, {
+      answer_id: state.counter,
       username: user.username,
       tier: user.tier,
       blocked: false,
       answer: arabic
-        ? "تتعلق الشكاوى بمعاملات متنازع عليها على بطاقات الدفع، ومنها شكوى العميل [NAME] بقيمة 980 درهم على الحساب [IBAN]."
-        : "Complaints about disputed card transactions include a case where customer [NAME] disputed a charge of AED 1,240 on card [CARD], and an account [IBAN] flagged for review. One mailbox thread also asks whether a disputed invoice was settled before quarter close.",
+        ? "تتعلق الشكاوى بمعاملات متنازع عليها على بطاقات الدفع، ومنها شكوى العميل [NAME_2] بقيمة 980 درهم على الحساب [IBAN_2]."
+        : "Complaints about disputed card transactions include a case where customer [NAME_1] disputed a charge of AED 1,240 on card [CARD_1], and account [IBAN_1] flagged for review (Source 1). One mailbox thread also asks whether a disputed invoice was settled before quarter close.",
       dropped_passages: 1,
       masked_in_context: sources.length ? { NAME: 3, IBAN: 2, CARD: 1, PHONE: 1 } : {},
       masked_in_answer: {},
       learned_attacks_count: 1,
       sources,
     });
+  }
+
+  if (url.pathname.startsWith("/api/reveal/") && req.method === "POST") {
+    let body;
+    try { body = JSON.parse(raw); } catch { return json(res, 400, { detail: "Body must be JSON." }); }
+    const user = USERS.find((u) => u.username === body.username);
+    if (!user) return json(res, 400, { detail: "Unknown user." });
+    const action = url.pathname.slice("/api/reveal/".length);
+    const find = () => requests.find((r) => r.id === body.request_id);
+    if (action === "list") {
+      const shape = (r) => ({ id: r.id, answer_id: r.answer_id, token: r.token, requester: r.requester, reason: r.reason, status: r.status, approver: r.approver ?? null, created_at: r.created_at, decided_at: r.decided_at ?? null });
+      return json(res, 200, {
+        can_request: REQUESTERS.has(user.role), can_approve: APPROVERS.has(user.role),
+        mine: requests.filter((r) => r.requester === user.username).slice().reverse().map(shape),
+        to_decide: APPROVERS.has(user.role) ? requests.filter((r) => r.status === "pending" && r.requester !== user.username).map(shape) : [],
+      });
+    }
+    if (action === "request") {
+      if (!REQUESTERS.has(user.role)) return json(res, 403, { detail: "Your role can't request a reveal. Ask a compliance officer." });
+      if (String(body.reason ?? "").trim().length < 10) return json(res, 400, { detail: "Give a reason of at least 10 characters, such as the case or alert number." });
+      const a = answers.get(body.answer_id);
+      if (!a) return json(res, 404, { detail: "That answer is not in the audit log." });
+      if (a.user !== user.username) return json(res, 403, { detail: "You can only request values from answers you received." });
+      if (!(body.token in a.values)) return json(res, 400, { detail: "That token does not appear in the passages of this answer." });
+      const r = { id: requests.length + 1, answer_id: body.answer_id, token: body.token, requester: user.username, reason: String(body.reason).slice(0, 300), status: "pending", created_at: new Date().toISOString() };
+      requests.push(r);
+      audit(user.username, "unmask_requested", { request_id: r.id, answer_id: r.answer_id, token: r.token, reason: r.reason });
+      return json(res, 200, { request_id: r.id });
+    }
+    if (action === "decide") {
+      const r = find();
+      if (!r) return json(res, 404, { detail: "No such request." });
+      if (!APPROVERS.has(user.role)) return json(res, 403, { detail: "Your role can't approve reveals." });
+      if (r.requester === user.username) return json(res, 403, { detail: "Someone other than the requester has to approve." });
+      if (r.status !== "pending") return json(res, 409, { detail: `This request is already ${r.status}.` });
+      r.status = body.approve ? "approved" : "denied"; r.approver = user.username; r.decided_at = new Date().toISOString();
+      audit(user.username, `unmask_${r.status}`, { request_id: r.id, answer_id: r.answer_id, token: r.token, requester: r.requester });
+      return json(res, 200, { status: r.status });
+    }
+    if (action === "value") {
+      const r = find();
+      if (!r) return json(res, 404, { detail: "No such request." });
+      if (r.requester !== user.username) return json(res, 403, { detail: "Only the person who asked can see this value." });
+      if (r.status === "revealed") return json(res, 409, { detail: "This value was already shown once. Make a new request if you need it again." });
+      if (r.status !== "approved") return json(res, 409, { detail: `This request is ${r.status}, not approved.` });
+      r.status = "revealed";
+      audit(user.username, "unmask_revealed", { request_id: r.id, answer_id: r.answer_id, token: r.token, approver: r.approver });
+      return json(res, 200, { value: answers.get(r.answer_id).values[r.token] });
+    }
+    return json(res, 404, { detail: "Not Found" });
   }
 
   json(res, 404, { detail: "Not Found" });

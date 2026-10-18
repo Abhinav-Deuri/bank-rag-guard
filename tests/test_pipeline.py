@@ -19,7 +19,7 @@ def test_model_never_sees_raw_identifiers(conn, models, truth):
     for t in truth:
         for key in ("eid", "iban", "phone"):
             assert t[key] not in sent
-    assert "[IBAN]" in sent and "[EMIRATES_ID]" in sent
+    assert "[IBAN_1]" in sent and "[EMIRATES_ID_1]" in sent
 
 
 def test_question_is_masked_before_the_model_and_the_log(conn, models):

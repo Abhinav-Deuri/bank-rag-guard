@@ -6,6 +6,8 @@ import type {
   AuditResponse,
   DemoUser,
   HealthResponse,
+  RevealListing,
+  RevealRequestRow,
   SourceChunk,
 } from "./types";
 
@@ -83,6 +85,7 @@ function parseAsk(value: unknown): AskResponse {
     masked_in_answer: answerCounts,
     learned_attacks_count: learned,
     reason: typeof value.reason === "string" ? value.reason : null,
+    answer_id: typeof value.answer_id === "number" ? value.answer_id : null,
     sources,
   };
 }
@@ -181,4 +184,79 @@ export function fetchAudit(options?: RequestOptions) {
 
 export function fetchHealth(options?: RequestOptions) {
   return request("/api/health", { method: "GET" }, parseHealth, { timeoutMs: 8_000, ...options });
+}
+
+// ---------- Break-glass reveal ----------
+const STATUSES = new Set(["pending", "approved", "denied", "revealed", "expired"]);
+
+function parseRevealRow(item: unknown): RevealRequestRow {
+  if (
+    !isRecord(item) ||
+    typeof item.id !== "number" ||
+    typeof item.answer_id !== "number" ||
+    typeof item.token !== "string" ||
+    typeof item.requester !== "string" ||
+    typeof item.status !== "string" ||
+    !STATUSES.has(item.status)
+  ) {
+    return bad("reveal list");
+  }
+  return {
+    id: item.id,
+    answer_id: item.answer_id,
+    token: item.token,
+    requester: item.requester,
+    reason: typeof item.reason === "string" ? item.reason : "",
+    status: item.status as RevealRequestRow["status"],
+    approver: typeof item.approver === "string" ? item.approver : null,
+    created_at: typeof item.created_at === "string" ? item.created_at : null,
+    decided_at: typeof item.decided_at === "string" ? item.decided_at : null,
+  };
+}
+
+function parseRevealListing(value: unknown): RevealListing {
+  if (!isRecord(value) || !Array.isArray(value.mine) || !Array.isArray(value.to_decide)) return bad("reveal list");
+  return {
+    can_request: value.can_request === true,
+    can_approve: value.can_approve === true,
+    mine: value.mine.map(parseRevealRow),
+    to_decide: value.to_decide.map(parseRevealRow),
+  };
+}
+
+const post = (body: unknown): RequestInit => ({
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify(body),
+});
+
+export function listReveals(username: string, options?: RequestOptions) {
+  return request("/api/reveal/list", post({ username }), parseRevealListing, { timeoutMs: 20_000, ...options });
+}
+
+export function requestReveal(body: { username: string; answer_id: number; token: string; reason: string }) {
+  return request(
+    "/api/reveal/request",
+    post(body),
+    (v) => (isRecord(v) && typeof v.request_id === "number" ? v.request_id : bad("reveal request")),
+    { timeoutMs: 20_000 },
+  );
+}
+
+export function decideReveal(body: { username: string; request_id: number; approve: boolean }) {
+  return request(
+    "/api/reveal/decide",
+    post(body),
+    (v) => (isRecord(v) && typeof v.status === "string" ? v.status : bad("reveal decision")),
+    { timeoutMs: 20_000 },
+  );
+}
+
+export function fetchRevealValue(body: { username: string; request_id: number }) {
+  return request(
+    "/api/reveal/value",
+    post(body),
+    (v) => (isRecord(v) && typeof v.value === "string" ? v.value : bad("reveal value")),
+    { timeoutMs: 20_000 },
+  );
 }

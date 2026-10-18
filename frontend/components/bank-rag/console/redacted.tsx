@@ -44,15 +44,56 @@ const LABEL: Record<string, string> = {
   CRYPTO_ADDRESS: "WALLET",
 };
 
-export function RedactionBar({ tag }: { tag: string }) {
-  const label = LABEL[tag] ?? tag.replace(/_/g, " ");
-  const width = Math.max(WIDTH[tag] ?? 8, label.length + 1);
+/** "IBAN_2" -> { base: "IBAN", n: 2 }; "CARD_CVV" -> { base: "CARD_CVV", n: null }. */
+export function splitToken(tag: string) {
+  const m = tag.match(/^(.*?)_(\d+)$/);
+  return m ? { base: m[1], n: Number(m[2]) } : { base: tag, n: null };
+}
+
+export interface RevealProps {
+  /** Values this viewer has been shown, by token (for the answer being rendered). */
+  values: Record<string, string>;
+  /** Present when this viewer may ask to reveal tokens in this text. */
+  onRequest?: (token: string) => void;
+}
+
+export function RedactionBar({ tag, reveal }: { tag: string; reveal?: RevealProps }) {
+  const { base, n } = splitToken(tag);
+  const word = LABEL[base] ?? base.replace(/_/g, " ");
+  const label = n ? `${word} ${n}` : word;
+  const width = Math.max(WIDTH[base] ?? 8, label.length + 1);
+  const value = reveal?.values[tag];
+
+  if (value) {
+    return (
+      <span
+        className="mx-px rounded-[2px] border border-accent px-1 font-ledger text-[0.86em] text-fg [unicode-bidi:isolate]"
+        dir="ltr"
+        title={`${label}, shown after two-person approval`}
+      >
+        {value}
+      </span>
+    );
+  }
+  if (reveal?.onRequest && n) {
+    return (
+      <button
+        type="button"
+        className="redact-bar cursor-pointer hover:outline hover:outline-1 hover:outline-accent"
+        style={{ minWidth: `${width}ch` }}
+        title={`Request to reveal ${label}. A second person must approve.`}
+        aria-label={`${label}, removed. Request to reveal.`}
+        onClick={(e) => {
+          e.stopPropagation();
+          reveal.onRequest?.(tag);
+        }}
+      >
+        {label}
+      </button>
+    );
+  }
   return (
-    <span
-      className="redact-bar"
-      style={{ minWidth: `${width}ch` }}
-      title={`${label.toLowerCase()} removed before the model read this`}
-    >
+    <span className="redact-bar" style={{ minWidth: `${width}ch` }} title={`${word.toLowerCase()} removed before the model read this`}>
       {label}
     </span>
   );
@@ -65,20 +106,20 @@ export interface CiteProps {
   onCite: (n: number) => void;
 }
 
-function inline(text: string, cite: CiteProps | undefined, keyBase: string): ReactNode[] {
+function inline(text: string, cite: CiteProps | undefined, keyBase: string, reveal?: RevealProps): ReactNode[] {
   const out: ReactNode[] = [];
   text.split(TOKENS).forEach((part, i) => {
     if (!part) return;
     const key = `${keyBase}-${i}`;
     const tag = part.match(TAG);
     if (tag) {
-      out.push(<RedactionBar key={key} tag={tag[1]} />);
+      out.push(<RedactionBar key={key} tag={tag[1]} reveal={reveal} />);
       return;
     }
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       out.push(
         <strong key={key} className="font-semibold text-fg">
-          {inline(part.slice(2, -2), cite, key)}
+          {inline(part.slice(2, -2), cite, key, reveal)}
         </strong>,
       );
       return;
@@ -121,11 +162,13 @@ function inline(text: string, cite: CiteProps | undefined, keyBase: string): Rea
 export function Redacted({
   text,
   cite,
+  reveal,
   className,
   paragraphClassName = "mb-2.5 last:mb-0",
 }: {
   text: string;
   cite?: CiteProps;
+  reveal?: RevealProps;
   className?: string;
   paragraphClassName?: string;
 }) {
@@ -139,7 +182,7 @@ export function Redacted({
           return (
             <ul key={b} className={cn("list-disc ps-5", paragraphClassName)}>
               {lines.map((l, i) => (
-                <li key={i}>{inline(l.replace(/^\s*[-*•]\s+/, ""), cite, `${b}-${i}`)}</li>
+                <li key={i}>{inline(l.replace(/^\s*[-*•]\s+/, ""), cite, `${b}-${i}`, reveal)}</li>
               ))}
             </ul>
           );
@@ -149,7 +192,7 @@ export function Redacted({
             {lines.map((l, i) => (
               <Fragment key={i}>
                 {i > 0 && <br />}
-                {inline(l.replace(/^\s*[-*•]\s+/, "• "), cite, `${b}-${i}`)}
+                {inline(l.replace(/^\s*[-*•]\s+/, "• "), cite, `${b}-${i}`, reveal)}
               </Fragment>
             ))}
           </p>

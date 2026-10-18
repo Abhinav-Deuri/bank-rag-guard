@@ -1,6 +1,6 @@
 import type { AuditEntry } from "@/lib/api/types";
 
-export type AuditKind = "question" | "answer" | "blocked" | "learned" | "other";
+export type AuditKind = "question" | "answer" | "blocked" | "learned" | "reveal" | "other";
 
 export interface AuditRow {
   id: number;
@@ -19,6 +19,17 @@ const KIND: Record<string, AuditKind> = {
   answer_returned: "answer",
   question_blocked: "blocked",
   guard_example_added: "learned",
+  unmask_requested: "reveal",
+  unmask_approved: "reveal",
+  unmask_denied: "reveal",
+  unmask_revealed: "reveal",
+};
+
+const REVEAL_LABEL: Record<string, string> = {
+  unmask_requested: "Reveal requested",
+  unmask_approved: "Reveal approved",
+  unmask_denied: "Reveal denied",
+  unmask_revealed: "Value shown once",
 };
 
 const LABEL: Record<AuditKind, string> = {
@@ -26,6 +37,7 @@ const LABEL: Record<AuditKind, string> = {
   answer: "Answer returned",
   blocked: "Blocked",
   learned: "Guard learned an attack",
+  reveal: "",
   other: "",
 };
 
@@ -65,6 +77,14 @@ function describe(kind: AuditKind, details: string): string {
     const reason = typeof d.reason === "string" ? d.reason : "";
     return reason ? clip(reason.charAt(0).toUpperCase() + reason.slice(1), 110) : "Stopped by the input guard";
   }
+  if (kind === "reveal") {
+    const token = typeof d.token === "string" ? d.token.replace(/_/g, " ") : "";
+    const ref = typeof d.request_id === "number" ? `request #${d.request_id}` : "";
+    const answer = typeof d.answer_id === "number" ? `answer #${d.answer_id}` : "";
+    const who = typeof d.requester === "string" ? `for ${d.requester}` : typeof d.approver === "string" ? `approved by ${d.approver}` : "";
+    const why = typeof d.reason === "string" ? `“${clip(d.reason, 70)}”` : "";
+    return [token, ref, answer, who, why].filter(Boolean).join(", ");
+  }
   if (kind === "learned") {
     const goal = typeof d.goal === "string" ? d.goal : "";
     const source = typeof d.source === "string" ? d.source : "";
@@ -102,7 +122,7 @@ export function toAuditRow(entry: AuditEntry): AuditRow {
     id: entry.id,
     actor: entry.actor,
     kind,
-    label: LABEL[kind] || entry.action.replace(/_/g, " "),
+    label: REVEAL_LABEL[entry.action] || LABEL[kind] || entry.action.replace(/_/g, " "),
     detail: describe(kind, entry.details),
     time: formatTime(entry.ts),
     hash: entry.hash ?? null,

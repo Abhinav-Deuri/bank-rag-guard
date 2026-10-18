@@ -2,8 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { ProximityGlow } from "@/components/bank-rag/landing/proximity-glow";
-import { Redacted } from "./redacted";
+import { Redacted, type RevealProps } from "./redacted";
 import type { Turn } from "./thread";
 
 /** Readable name for the backend's `source` field ("cuad/…", "enron_email/…", "synthetic_customer_notes"). */
@@ -20,11 +19,13 @@ export function SourcesPane({
   cite,
   onCite,
   maxTier,
+  reveal,
 }: {
   turn: Turn | null;
   cite: number | null;
   onCite: (n: number) => void;
   maxTier: number;
+  reveal?: RevealProps;
 }) {
   const r = turn?.status === "done" ? turn.response : undefined;
   const sources = r?.sources ?? [];
@@ -37,7 +38,7 @@ export function SourcesPane({
   const locked = turn ? Array.from({ length: maxTier - turn.tier }, (_, i) => turn.tier + i + 1) : [];
   let empty: string | null = null;
   if (!turn) empty = "Sources appear here after you ask.";
-  else if (turn.status === "pending") empty = null;
+  else if (turn.status === "pending") empty = "Waiting for the answer.";
   else if (turn.status === "error") empty = "No answer came back, so there are no sources to show.";
   else if (r?.blocked) empty = "Nothing was searched for this question.";
   else if (!sources.length) empty = "No documents at this clearance matched, so the model read nothing.";
@@ -57,40 +58,8 @@ export function SourcesPane({
 
       {empty && <p className="mt-2.5 text-sm text-dim">{empty}</p>}
 
-      {turn?.status === "pending" && (
-        <div className="mt-3.5 space-y-3" role="status" aria-label="Loading candidate passages">
-          <div className="flex items-center gap-2 text-xs text-accent">
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-accent" />
-            </span>
-            <span className="font-medium text-dim">Retrieving & screening passages at Tier {turn.tier}…</span>
-          </div>
-
-          {[1, 2].map((idx) => (
-            <div key={idx} className="rounded-lg border border-line-soft/80 bg-raised/30 p-3.5 space-y-2.5">
-              <div className="flex items-center gap-2 text-xs">
-                <div className="skeleton-shimmer h-3.5 w-6 rounded" />
-                <div className="skeleton-shimmer h-3.5 w-16 rounded" />
-                <div className="skeleton-shimmer h-3.5 w-20 rounded" />
-                <div className="skeleton-shimmer h-3.5 w-24 rounded ms-auto bg-accent/20" />
-              </div>
-              <div className="space-y-1.5 pt-1">
-                <div className="skeleton-shimmer h-3 w-full rounded" />
-                <div className="flex items-center gap-2">
-                  <div className="skeleton-shimmer h-3 w-1/3 rounded" />
-                  <div className="skeleton-shimmer h-3 w-20 rounded bg-accent/30" />
-                  <div className="skeleton-shimmer h-3 flex-1 rounded" />
-                </div>
-                <div className="skeleton-shimmer h-3 w-4/5 rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {sources.length > 0 && (
-        <ol className="mt-3.5 space-y-3">
+        <ol className="mt-3">
           {sources.map((s, i) => {
             const on = cite === i + 1;
             return (
@@ -99,52 +68,23 @@ export function SourcesPane({
                 ref={(el) => {
                   refs.current[i] = el;
                 }}
-                className="w-full"
+                className={cn("-mx-3 border-t border-line-soft px-3 py-2.5", on && "bg-raised")}
               >
-                <ProximityGlow
-                  range={40}
-                  className={cn(
-                    "border-line-soft! transition-all duration-150",
-                    on && "ring-1 ring-accent/70 shadow-[0_0_20px_rgba(56,189,248,0.15)]",
-                  )}
-                  edgeSensitivity={25}
-                  glowColor="215 85 72"
-                  backgroundColor="var(--ink-850)"
-                  borderRadius={16}
-                  glowRadius={44}
-                  glowIntensity={1.0}
-                  coneSpread={25}
-                  animated={false}
-                  colors={["#1e3fd8", "#38bdf8", "#a5d8ff"]}
+                <button
+                  type="button"
+                  onClick={() => onCite(i + 1)}
+                  aria-pressed={on}
+                  className="num flex w-full flex-wrap gap-x-3.5 gap-y-0.5 text-start font-ledger text-xs text-faint"
                 >
-                  <div
-                    onClick={() => onCite(i + 1)}
-                    className={cn(
-                      "w-full cursor-pointer p-3.5 transition-colors",
-                      on ? "bg-raised/70" : "hover:bg-raised/40",
-                    )}
-                  >
-                    <div className="num flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-start font-ledger text-xs text-faint">
-                      <span
-                        className={cn(
-                          "flex size-5 items-center justify-center rounded-full text-[11px] font-semibold",
-                          on ? "bg-accent text-bg" : "bg-inset text-fg",
-                        )}
-                      >
-                        {i + 1}
-                      </span>
-                      <span className="text-dim font-mono">#{s.id}</span>
-                      <span className="capitalize">{kindOf(s.source)}</span>
-                      <span className="rounded bg-inset px-1.5 py-0.5 text-[11px] text-faint">
-                        Tier {s.tier}
-                      </span>
-                      <span className="ms-auto text-dim" title="Similarity match score">
-                        match {s.score.toFixed(3)}
-                      </span>
-                    </div>
-                    <Redacted text={s.text} className="mt-2 font-doc text-[13.5px] leading-[1.65] text-dim" />
-                  </div>
-                </ProximityGlow>
+                  <span className={cn("font-medium", on ? "text-accent" : "text-dim")}>{i + 1}</span>
+                  <span className="text-dim">#{s.id}</span>
+                  <span>{kindOf(s.source)}</span>
+                  <span>Tier {s.tier}</span>
+                  <span title="Similarity between the question and this passage, not answer confidence">
+                    match {s.score.toFixed(3)}
+                  </span>
+                </button>
+                <Redacted text={s.text} reveal={reveal} className="mt-1 font-doc text-sm leading-[1.75] text-dim" />
               </li>
             );
           })}

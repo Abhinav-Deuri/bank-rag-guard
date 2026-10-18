@@ -20,7 +20,7 @@ if os.path.exists(_env_path):
                 os.environ[k.strip()] = v.strip().strip('"').strip("'")
 os.environ.setdefault("RAG_MODEL", "openai/gpt-oss-120b")
 
-import audit, guard, rag                                           # imported after the keys are loaded
+import audit, guard, rag, vault                                    # imported after the keys are loaded
 
 app = FastAPI(title="Bank RAG Guard demo")
 DB_URL = os.environ.get("DATABASE_URL", "dbname=bankrag user=linux1")
@@ -109,6 +109,7 @@ def ask(body: Ask, request: Request):
             "masked_in_answer": res.get("masked_in_answer", {}),
             "learned_attacks_count": len(learned_attacks),
             "reason": res.get("reason") if res.get("blocked") else None,
+            "answer_id": res.get("answer_id"),
             "sources": [{"id": s["id"], "source": s["source"], "tier": s["tier"], "score": s["score"], "text": s["text"][:300]}
                         for s in res.get("sources", [])]}
 
@@ -123,6 +124,51 @@ def audit_view():
             "entries": [{"id": i, "actor": a, "action": act, "details": json.dumps(d, ensure_ascii=False)[:500],
                          "ts": t.isoformat() if t else None, "prev_hash": p, "hash": h}
                         for i, a, act, d, t, p, h in rows]}
+
+# ---- Break-glass reveal: one masked value, two people, every step in the audit log (src/vault.py) ----
+class RevealRequest(BaseModel):
+    username: str
+    answer_id: int
+    token: str
+    reason: str
+
+class RevealDecision(BaseModel):
+    username: str
+    request_id: int
+    approve: bool
+
+class RevealAction(BaseModel):
+    username: str
+    request_id: int
+
+class RevealList(BaseModel):
+    username: str
+
+def _vault_call(fn, *args):
+    try:
+        with db() as conn:
+            return fn(conn, *args)
+    except vault.RevealError as e:
+        raise HTTPException(e.status, str(e))
+    except psycopg.OperationalError:
+        raise HTTPException(503, "The database is unavailable. Please try again shortly.")
+
+@app.post("/api/reveal/request")
+def reveal_request(body: RevealRequest):
+    return {"request_id": _vault_call(vault.request, body.username, body.answer_id, body.token, body.reason)}
+
+@app.post("/api/reveal/decide")
+def reveal_decide(body: RevealDecision):
+    return {"status": _vault_call(vault.decide, body.username, body.request_id, body.approve)}
+
+@app.post("/api/reveal/value")
+def reveal_value(body: RevealAction):
+    # The value goes to this one response and nowhere else: not the log, not a table.
+    return {"value": _vault_call(vault.reveal, body.username, body.request_id)}
+
+@app.post("/api/reveal/list")
+def reveal_list(body: RevealList):
+    return _vault_call(vault.listing, body.username)
 
 @app.get("/health")
 def health():

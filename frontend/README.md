@@ -42,8 +42,9 @@ Or put `__429__`, `__500__`, `__400__`, `__slow__`, `__html__`, `__nosources__` 
 
 ## How the proxy works
 
-Route handlers in `app/api/{users,ask,audit,health}` call `lib/server/proxy.ts`, which forwards only to four fixed
-upstream paths (`/api/users`, `/api/ask`, `/api/audit`, `/health`). The browser never supplies a URL or path. Upstream
+Route handlers in `app/api/{users,ask,audit,health}` and `app/api/reveal/[action]` call `lib/server/proxy.ts`, which
+forwards only to fixed upstream paths (`/api/users`, `/api/ask`, `/api/audit`, `/health`, and the four `/api/reveal/*`
+actions). The browser never supplies a URL or path. Upstream
 status codes are preserved; error bodies are reduced to a short `detail`, never stack traces; responses are
 `no-store`. POSTs are never retried automatically.
 
@@ -56,34 +57,34 @@ status codes are preserved; error bodies are reduced to a short `detail`, never 
   server can reach.
 - **Timeouts:** `/api/ask` allows up to 110 s upstream (`maxDuration = 120`); the browser gives up at 120 s. Model calls
   and provider retries can be slow. Check your host's function time limit.
-- **Rate limiter:** the backend limits by `request.client.host` (6/min per visitor, 400/day overall). Behind this proxy
+- **Rate limiter:** the backend limits by `request.client.host` (30/min per visitor, 400/day overall). Behind this proxy
   every visitor shares the proxy's IP, so the per-minute limit becomes shared. The proxy does not forward or rewrite
   client IPs. If you want per-visitor limits, that is a backend decision (e.g. uvicorn `--proxy-headers` with a trusted
   forwarded-for setup).
 
-## Workspace dashboard
+## Workspace
 
-`/workspace` is laid out as a dashboard in the style of the supplied reference: a rounded app frame on a gray page, a
-slim icon rail, pill tabs, a greeting with a search pill, soft white cards, black active states and lime highlights.
-Every number on it comes from the API; with no answer yet the tiles and chart say so instead of showing sample data.
+`/workspace` is laid out like a document-review tool rather than a dashboard: one question thread, the sources the
+model read, and the audit log, separated by rules instead of cards. Everything on it comes from the API.
 
-| Reference slot | What it is here |
-|---|---|
-| Smart Wallet card | "Ask the assistant": scenario tiles, question box, lime Ask button, lime "New +" |
-| 2×2 stat cards | Clearance tier, sources returned, masked items, audit chain (from `/api/users`, `/api/ask`, `/api/audit`) |
-| Cash Flow chart | Retrieval insights: similarity per returned source, or masked items by type (tabs) |
-| Quick send avatars | Choose demo user (no password, still labeled as a demo identity switcher) |
-| Credit card + Deposit/Transfer | Dark access pass for the selected identity + lowest/highest-clearance pills |
-| Quick action tiles | New question, refresh audit, clear |
-| Starter Plan card | Demo limits (6/min per visitor, 400/day) + a link to how it works |
-| Search pill | Filters the displayed audit events |
-
-The top bar is the same centered glass pill as the landing page nav and uses the same GooeyNav for the tabs (a plain
-scrolling tab row on phones). It and the icon rail are `position: fixed`, so they stay on screen while you scroll; the
-active tab and rail icon follow the section in view, and the page reserves the bar's height via `--dash-bar-h`.
-
-Layout: three columns from `xl`, two from `lg`, one on phones (the user picker comes before the question). Inside the
-dashboard the accent is lime on dark and deep green on light (`.dash-scope` in `app/globals.css`).
+- **Acting as** (top bar) switches the demo identity. The tier squares show what that identity can read.
+- **Thread** (`components/bank-rag/console/thread.tsx`): each question shows the time, identity and tier, then the
+  answer set as a document. Removed personal data appears as solid redaction bars (`[NAME]`, `[IBAN]`, …) sized
+  roughly to the kind of value removed. "Source 2" style references in the answer become footnote buttons. A line of
+  facts under each answer says what the safeguards did (guard, tiers searched, passages, withheld, removed).
+- If an answer comes back with no sources, the thread shows a neutral "no documents at this clearance matched" line
+  instead of the model's wording, which would otherwise hint that restricted documents exist.
+- **Sources** (`sources-pane.tsx`): masked excerpts for the selected answer, plus withheld passages and the tiers that
+  were not searched.
+- **Audit log** (`audit-log.tsx`): the latest 12 entries as a ledger. When the backend sends `ts`, `hash` and
+  `prev_hash` (added to `GET /api/audit` in `app.py`), each row shows its fingerprint and the previous one, and a
+  mismatch between neighbouring rows is shown in red.
+- **Reveal requests** (`reveal-panel.tsx`): a compliance officer selects a numbered bar in their own answer and gives a
+  reason; a different person approves or denies; the requester sees the value once. Values stay in memory for the
+  person who asked and never reach the audit panel.
+- On phones the three areas become tabs.
+- Fonts: Readex Pro for the interface, Source Serif 4 for document text, IBM Plex Mono for ids and fingerprints, all
+  bundled through Fontsource (no requests to Google).
 
 ## Light / dark theme
 

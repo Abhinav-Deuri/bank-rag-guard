@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import type { useAudit } from "@/hooks/use-audit";
 import { toAuditRow, type AuditRow } from "@/lib/audit-format";
-import { ProximityGlow } from "@/components/bank-rag/landing/proximity-glow";
 import { cn } from "@/lib/utils";
 import { Redacted } from "./redacted";
 
@@ -100,61 +99,47 @@ export function AuditLog({ audit }: { audit: Audit }) {
       )}
 
       {shown.length > 0 && (
-        <ProximityGlow
-          range={50}
-          className="mt-3.5 border-line-soft!"
-          edgeSensitivity={25}
-          glowColor="215 85 72"
-          backgroundColor="var(--ink-850)"
-          borderRadius={18}
-          glowRadius={44}
-          glowIntensity={1.0}
-          coneSpread={25}
-          animated={false}
-          colors={["#1e3fd8", "#38bdf8", "#a5d8ff"]}
-        >
-          <div className="min-h-0 w-full overflow-x-auto p-3.5">
-            <table className="num w-full border-collapse font-ledger text-xs">
-              <caption className="sr-only">Latest audit log entries, newest first</caption>
-              <thead>
-                <tr className="text-start text-faint">
-                  <th scope="col" className="border-b border-line pb-1.5 pe-2 text-start font-normal">#</th>
-                  {hasTimes && <th scope="col" className="border-b border-line px-2 pb-1.5 text-start font-normal">Time</th>}
-                  <th scope="col" className="border-b border-line px-2 pb-1.5 text-start font-normal">Event</th>
-                  {hasHashes && <th scope="col" className="border-b border-line ps-2 pb-1.5 text-end font-normal">Fingerprint</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((row, i) => {
-                  const broken = brokenLink(row, i);
-                  return (
-                    <tr key={row.id} className="align-top">
-                      <td className="border-b border-line-soft py-2 pe-2 text-dim">{row.id}</td>
-                      {hasTimes && <td className="border-b border-line-soft px-2 py-2 text-faint">{row.time}</td>}
-                      <td className="border-b border-line-soft px-2 py-2 font-sans text-[13px]">
-                        <span className={cn(row.kind === "blocked" ? "text-bad" : row.kind === "learned" ? "text-warn" : row.kind === "answer" ? "text-fg" : "text-dim")}>
-                          {row.label}
-                        </span>{" "}
-                        <span className="text-faint">{row.actor}</span>
-                        {row.detail && (
-                          <Redacted text={row.detail} className="mt-px text-[12.5px] leading-snug text-dim" />
-                        )}
-                      </td>
-                      {hasHashes && (
-                        <td className="whitespace-nowrap border-b border-line-soft py-2 ps-2 text-end">
-                          <div className="text-dim">{short(row.hash)}</div>
-                          <div className={broken ? "text-bad" : "text-faint"} title="Fingerprint of the entry before this one">
-                            prev {short(row.prevHash)}
-                          </div>
-                        </td>
+        <div className="mt-3 min-h-0 overflow-y-auto lg:max-h-[26rem]">
+          <table className="num w-full border-collapse font-ledger text-xs">
+            <caption className="sr-only">Latest audit log entries, newest first</caption>
+            <thead>
+              <tr className="text-start text-faint">
+                <th scope="col" className="border-b border-line pb-1.5 pe-2 text-start font-normal">#</th>
+                {hasTimes && <th scope="col" className="border-b border-line px-2 pb-1.5 text-start font-normal">Time</th>}
+                <th scope="col" className="border-b border-line px-2 pb-1.5 text-start font-normal">Event</th>
+                {hasHashes && <th scope="col" className="border-b border-line ps-2 pb-1.5 text-end font-normal">Fingerprint</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((row, i) => {
+                const broken = brokenLink(row, i);
+                return (
+                  <tr key={row.id} className="align-top">
+                    <td className="border-b border-line-soft py-2 pe-2 text-dim">{row.id}</td>
+                    {hasTimes && <td className="border-b border-line-soft px-2 py-2 text-faint">{row.time}</td>}
+                    <td className="border-b border-line-soft px-2 py-2 font-sans text-[13px]">
+                      <span className={cn(row.kind === "blocked" ? "text-bad" : row.kind === "learned" ? "text-warn" : row.kind === "reveal" ? "text-accent" : row.kind === "answer" ? "text-fg" : "text-dim")}>
+                        {row.label}
+                      </span>{" "}
+                      <span className="text-faint">{row.actor}</span>
+                      {row.detail && (
+                        <Redacted text={row.detail} className="mt-px text-[12.5px] leading-snug text-dim" />
                       )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </ProximityGlow>
+                    </td>
+                    {hasHashes && (
+                      <td className="whitespace-nowrap border-b border-line-soft py-2 ps-2 text-end">
+                        <div className="text-dim">{short(row.hash)}</div>
+                        <div className={broken ? "text-bad" : "text-faint"} title="Fingerprint of the entry before this one">
+                          prev {short(row.prevHash)}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <p className="mt-3 text-[12.5px] text-faint">

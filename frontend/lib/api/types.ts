@@ -30,6 +30,8 @@ export interface AskResponse {
   masked_in_context: Record<string, number>;
   masked_in_answer?: Record<string, number>;
   learned_attacks_count?: number;
+  /** Audit-log id of this answer; needed to request a break-glass reveal. */
+  answer_id?: number | null;
   /** The input guard's short explanation, when the question was blocked. */
   reason?: string | null;
   sources: SourceChunk[];
@@ -60,3 +62,25 @@ export interface HealthResponse {
 }
 
 export const MAX_QUESTION_LENGTH = 500;
+
+/** Break-glass reveal (backend src/vault.py). Values never appear in these shapes. */
+export type RevealStatus = "pending" | "approved" | "denied" | "revealed" | "expired";
+
+export interface RevealRequestRow {
+  id: number;
+  answer_id: number;
+  token: string;
+  requester: string;
+  reason: string;
+  status: RevealStatus;
+  approver: string | null;
+  created_at: string | null;
+  decided_at: string | null;
+}
+
+export interface RevealListing {
+  can_request: boolean;
+  can_approve: boolean;
+  mine: RevealRequestRow[];
+  to_decide: RevealRequestRow[];
+}

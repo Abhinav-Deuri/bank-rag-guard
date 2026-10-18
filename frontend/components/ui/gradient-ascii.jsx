@@ -480,10 +480,7 @@ const GradientASCII = ({
     dpr
   };
   const settingsRef = useRef(settings);
-
-  useEffect(() => {
-    settingsRef.current = settings;
-  });
+  settingsRef.current = settings;
 
   useEffect(() => {
     const container = containerRef.current;

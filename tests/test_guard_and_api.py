@@ -86,3 +86,19 @@ def test_rate_limit_is_per_visitor_only_when_the_proxy_is_trusted(client, monkey
 def test_bad_input_is_rejected(client):
     assert client.post("/api/ask", json={"username": "nobody", "question": "hi"}).status_code == 400
     assert client.post("/api/ask", json={"username": "teller1", "question": "x" * 501}).status_code == 400
+
+
+def test_reveal_endpoints(client):
+    ask = client.post("/api/ask", json={"username": "compliance1", "question": "disputed card transaction"}).json()
+    text = " ".join(s["text"] for s in ask["sources"])
+    token = "IBAN_1" if "[IBAN_1]" in text else "EMIRATES_ID_1"
+    body = {"username": "compliance1", "answer_id": ask["answer_id"], "token": token, "reason": "AML alert 77, review"}
+    assert client.post("/api/reveal/request", json={**body, "username": "teller1"}).status_code == 403
+    rid = client.post("/api/reveal/request", json=body).json()["request_id"]
+    queue = client.post("/api/reveal/list", json={"username": "auditor1"}).json()
+    assert any(r["id"] == rid for r in queue["to_decide"])
+    assert client.post("/api/reveal/decide", json={"username": "compliance1", "request_id": rid, "approve": True}).status_code == 403
+    assert client.post("/api/reveal/decide", json={"username": "auditor1", "request_id": rid, "approve": True}).json()["status"] == "approved"
+    value = client.post("/api/reveal/value", json={"username": "compliance1", "request_id": rid}).json()["value"]
+    assert value and value not in json.dumps(client.get("/api/audit").json())
+    assert client.post("/api/reveal/value", json={"username": "compliance1", "request_id": rid}).status_code == 409

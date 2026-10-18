@@ -13,6 +13,10 @@ const ROUTES = {
   ask: { method: "POST", path: "/api/ask", timeoutMs: 110_000 },
   audit: { method: "GET", path: "/api/audit", timeoutMs: 30_000 },
   health: { method: "GET", path: "/health", timeoutMs: 8_000 },
+  revealRequest: { method: "POST", path: "/api/reveal/request", timeoutMs: 20_000 },
+  revealDecide: { method: "POST", path: "/api/reveal/decide", timeoutMs: 20_000 },
+  revealValue: { method: "POST", path: "/api/reveal/value", timeoutMs: 20_000 },
+  revealList: { method: "POST", path: "/api/reveal/list", timeoutMs: 20_000 },
 } as const;
 
 export type RouteKey = keyof typeof ROUTES;
