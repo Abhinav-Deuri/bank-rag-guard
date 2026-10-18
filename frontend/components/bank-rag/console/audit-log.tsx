@@ -132,7 +132,21 @@ export function AuditLog({ audit }: { audit: Audit }) {
                       <td className="border-b border-line-soft py-2 pe-2 text-dim">{row.id}</td>
                       {hasTimes && <td className="border-b border-line-soft px-2 py-2 text-faint">{row.time}</td>}
                       <td className="border-b border-line-soft px-2 py-2 font-sans text-[13px]">
-                        <span className={cn(row.kind === "blocked" ? "text-bad" : row.kind === "learned" ? "text-warn" : row.kind === "answer" ? "text-fg" : "text-dim")}>
+                        <span
+                          className={cn(
+                            row.kind === "blocked"
+                              ? "text-bad"
+                              : row.kind === "learned"
+                                ? "text-warn"
+                                : row.kind === "unmask"
+                                  ? "font-medium text-ok"
+                                  : row.kind === "action"
+                                    ? "font-medium text-accent"
+                                    : row.kind === "answer"
+                                      ? "text-fg"
+                                      : "text-dim",
+                          )}
+                        >
                           {row.label}
                         </span>{" "}
                         <span className="text-faint">{row.actor}</span>

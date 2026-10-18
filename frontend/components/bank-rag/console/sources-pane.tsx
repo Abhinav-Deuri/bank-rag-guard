@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { ProximityGlow } from "@/components/bank-rag/landing/proximity-glow";
 import { Redacted } from "./redacted";
+import type { VaultToken } from "@/lib/api/types";
 import type { Turn } from "./thread";
 
 /** Readable name for the backend's `source` field ("cuad/…", "enron_email/…", "synthetic_customer_notes"). */
@@ -20,11 +21,15 @@ export function SourcesPane({
   cite,
   onCite,
   maxTier,
+  unmaskedMap,
+  onSelectToken,
 }: {
   turn: Turn | null;
   cite: number | null;
   onCite: (n: number) => void;
   maxTier: number;
+  unmaskedMap?: Record<string, string>;
+  onSelectToken?: (token: VaultToken) => void;
 }) {
   const r = turn?.status === "done" ? turn.response : undefined;
   const sources = r?.sources ?? [];
@@ -93,6 +98,7 @@ export function SourcesPane({
         <ol className="mt-3.5 space-y-3">
           {sources.map((s, i) => {
             const on = cite === i + 1;
+            const sTokens = s.vault_tokens?.length ? s.vault_tokens : r?.vault_tokens;
             return (
               <li
                 key={`${s.id}-${i}`}
@@ -142,7 +148,13 @@ export function SourcesPane({
                         match {s.score.toFixed(3)}
                       </span>
                     </div>
-                    <Redacted text={s.text} className="mt-2 font-doc text-[13.5px] leading-[1.65] text-dim" />
+                    <Redacted
+                      text={s.text}
+                      className="mt-2 font-doc text-[13.5px] leading-[1.65] text-dim"
+                      vaultTokens={sTokens}
+                      unmaskedMap={unmaskedMap}
+                      onSelectToken={onSelectToken}
+                    />
                   </div>
                 </ProximityGlow>
               </li>
@@ -165,6 +177,75 @@ export function SourcesPane({
           {locked.length === 1 ? `Tier ${locked[0]} was` : `Tiers ${locked.join(" and ")} were`} not searched for{" "}
           {turn?.username}.
         </p>
+      )}
+
+      {r?.mosaic && (
+        <div className="mt-4 rounded-xl border border-line-soft bg-surface/50 p-3.5 text-xs space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-faint">
+                Pivot 1 · Stateful k-Anonymity Tracker
+              </span>
+              <div className="font-medium text-fg">Session Mosaic Attack Graph ({r.mosaic.username})</div>
+            </div>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold uppercase",
+                r.mosaic.level === "critical"
+                  ? "bg-bad/20 text-bad"
+                  : r.mosaic.level === "elevated"
+                    ? "bg-warn/20 text-warn"
+                    : "bg-ok/15 text-ok",
+              )}
+            >
+              {r.mosaic.risk_score}% · {r.mosaic.level}
+            </span>
+          </div>
+
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-inset">
+            <div
+              className={cn(
+                "h-full transition-all duration-300",
+                r.mosaic.level === "critical"
+                  ? "bg-bad"
+                  : r.mosaic.level === "elevated"
+                    ? "bg-warn"
+                    : "bg-ok",
+              )}
+              style={{ width: `${Math.min(100, Math.max(4, r.mosaic.risk_score))}%` }}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 font-mono text-[11px] text-dim">
+            <div className="rounded border border-line-soft/60 bg-bg/60 px-2 py-1">
+              <span className="text-faint block text-[10px]">Turns</span>
+              <span className="text-fg font-semibold">{r.mosaic.turns_in_window}</span>
+            </div>
+            <div className="rounded border border-line-soft/60 bg-bg/60 px-2 py-1">
+              <span className="text-faint block text-[10px]">Entities</span>
+              <span className="text-fg font-semibold">{r.mosaic.entities_tracked}</span>
+            </div>
+            <div className="rounded border border-line-soft/60 bg-bg/60 px-2 py-1">
+              <span className="text-faint block text-[10px]">Chunks</span>
+              <span className="text-fg font-semibold">{r.mosaic.sources_touched}</span>
+            </div>
+          </div>
+
+          {r.mosaic.nodes.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-0.5">
+              {r.mosaic.nodes.map((node) => (
+                <span
+                  key={node}
+                  className="rounded border border-line-soft bg-bg px-1.5 py-0.5 font-mono text-[10px] text-dim"
+                >
+                  {node}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {r.mosaic.advisory && <p className="text-[11.5px] leading-snug text-dim">{r.mosaic.advisory}</p>}
+        </div>
       )}
     </section>
   );

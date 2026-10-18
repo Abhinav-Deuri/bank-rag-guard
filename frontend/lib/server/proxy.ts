@@ -13,6 +13,9 @@ const ROUTES = {
   ask: { method: "POST", path: "/api/ask", timeoutMs: 110_000 },
   audit: { method: "GET", path: "/api/audit", timeoutMs: 30_000 },
   health: { method: "GET", path: "/health", timeoutMs: 8_000 },
+  breakGlass: { method: "POST", path: "/api/break-glass", timeoutMs: 20_000 },
+  executeAction: { method: "POST", path: "/api/actions/execute", timeoutMs: 20_000 },
+  factsheet: { method: "GET", path: "/api/factsheet", timeoutMs: 20_000 },
 } as const;
 
 export type RouteKey = keyof typeof ROUTES;

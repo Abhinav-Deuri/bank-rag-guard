@@ -2,9 +2,9 @@
 import hashlib, os, time, requests
 from collections import Counter
 try:
-    from . import audit, masker
+    from . import audit, masker, token_vault
 except (ImportError, ValueError):
-    import audit, masker
+    import audit, masker, token_vault
 
 JINA_URL = "https://api.jina.ai/v1/embeddings"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -86,8 +86,11 @@ def ask_model(question, context):
 
 def answer(conn, username, question, k=5, chunk_filter=None):
     """Run the full chain and return a dictionary with the answer, sources and masking counts."""
+    import re
+    from collections import defaultdict
     role, tier = get_user(conn, username)
-    q_masked, _ = masker.mask_all(question)           # personal data in the question never reaches the model or the log
+    q_masked, q_spans = masker.mask_all(question)           # personal data in the question never reaches the model or the log
+    token_vault.register_spans(conn, question, q_spans)
     audit.append_event(conn, username, "question_received", {"role": role, "tier": tier, "question": q_masked})
 
     chunks = retrieve(conn, q_masked, tier, k)
@@ -95,21 +98,58 @@ def answer(conn, username, question, k=5, chunk_filter=None):
     masked_chunks = []
     for cid, source, doc_id, content, ctier, score in chunks:
         masked, spans = masker.mask_all(content)
-        masked_chunks.append((cid, source, ctier, score, masked, spans))
+        c_tokens = token_vault.register_spans(conn, content, spans)
+        masked_chunks.append((cid, source, ctier, score, masked, spans, c_tokens))
     dropped = 0
     if chunk_filter is not None:                          # drop passages with hidden instructions
         kept = [ch for ch in masked_chunks if not chunk_filter(ch[4])]
         dropped = len(masked_chunks) - len(kept)
         masked_chunks = kept
     sources, parts, in_counts = [], [], Counter()
-    for i, (cid, source, ctier, score, masked, spans) in enumerate(masked_chunks, 1):
+    all_vault_tokens = []
+    tokens_by_label = defaultdict(list)
+    for i, (cid, source, ctier, score, masked, spans, c_tokens) in enumerate(masked_chunks, 1):
         in_counts.update(label for _, _, label in spans)
         parts.append(f"[Source {i}] {masked[:1200]}")
-        sources.append({"id": cid, "source": source, "tier": ctier, "score": round(float(score), 3), "text": masked})
+        sources.append({"id": cid, "source": source, "tier": ctier, "score": round(float(score), 3), "text": masked, "vault_tokens": c_tokens})
+        for tok in c_tokens:
+            all_vault_tokens.append(tok)
+            tokens_by_label[tok["label"]].append(tok["token_id"])
 
     raw, model = ask_model(q_masked, "\n\n".join(parts))
     final, out_spans = masker.mask_all(raw)            # second safety net on the answer
+    out_tokens = token_vault.register_spans(conn, raw, out_spans)
+    for tok in out_tokens:
+        all_vault_tokens.append(tok)
+        tokens_by_label[tok["label"]].insert(0, tok["token_id"])
     out_counts = Counter(label for _, _, label in out_spans)
+
+    label_cursors = defaultdict(int)
+    source_label_cursors = defaultdict(lambda: defaultdict(int))
+    answer_tokens = []
+    for idx, m in enumerate(re.finditer(r"\[([A-Z][A-Z0-9_]*)\]", final)):
+        lbl = m.group(1)
+        # Check if the surrounding clause/line explicitly cites "Source N"
+        window_start = max(0, final.rfind("\n", 0, m.start()), m.start() - 120)
+        window_end = min(len(final), m.end() + 120)
+        cite_match = re.search(r"\bSources?\s+(\d+)\b", final[window_start:window_end], re.I)
+        chosen_tid = None
+        if cite_match:
+            src_idx = int(cite_match.group(1)) - 1
+            if 0 <= src_idx < len(sources):
+                src_candidates = [t["token_id"] for t in sources[src_idx].get("vault_tokens", []) if t["label"] == lbl]
+                if src_candidates:
+                    s_pos = source_label_cursors[src_idx][lbl] % len(src_candidates)
+                    chosen_tid = src_candidates[s_pos]
+                    source_label_cursors[src_idx][lbl] += 1
+        if chosen_tid is None:
+            candidates = tokens_by_label.get(lbl, [])
+            if candidates:
+                pos = label_cursors[lbl] % len(candidates)
+                chosen_tid = candidates[pos]
+                label_cursors[lbl] += 1
+        if chosen_tid is not None:
+            answer_tokens.append({"index": idx, "token_id": chosen_tid, "label": lbl})
 
     # The log stores a fingerprint of the answer, never its text, so a reviewer holding the answer can prove it
     # matches what was returned without the log keeping any of it.
@@ -120,4 +160,5 @@ def answer(conn, username, question, k=5, chunk_filter=None):
         "answer_hash": ans_digest, "masked_in_context": dict(in_counts), "masked_in_answer": dict(out_counts)})
     return {"user": username, "tier": tier, "question": question, "answer": final, "sources": sources,
             "dropped_passages": dropped, "masked_in_context": dict(in_counts),
-            "masked_in_answer": dict(out_counts), "answer_hash": ans_digest}
+            "masked_in_answer": dict(out_counts), "answer_hash": ans_digest,
+            "vault_tokens": all_vault_tokens, "answer_tokens": answer_tokens}

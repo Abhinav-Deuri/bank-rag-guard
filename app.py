@@ -20,7 +20,7 @@ if os.path.exists(_env_path):
                 os.environ[k.strip()] = v.strip().strip('"').strip("'")
 os.environ.setdefault("RAG_MODEL", "openai/gpt-oss-120b")
 
-import audit, guard, rag                                           # imported after the keys are loaded
+import audit, guard, rag, token_vault, actions, mosaic, factsheet  # imported after the keys are loaded
 
 app = FastAPI(title="Bank RAG Guard demo")
 DB_URL = os.environ.get("DATABASE_URL", "dbname=bankrag user=linux1")
@@ -54,6 +54,16 @@ def db():
 class Ask(BaseModel):
     username: str
     question: str
+
+class BreakGlassApprove(BaseModel):
+    token_id: str
+    requested_by: str
+    approved_by: str = "compliance1"
+    justification: str
+
+class ActionExecute(BaseModel):
+    action_id: int
+    username: str
 
 @app.get("/api/users")
 def users():
@@ -109,8 +119,53 @@ def ask(body: Ask, request: Request):
             "masked_in_answer": res.get("masked_in_answer", {}),
             "learned_attacks_count": len(learned_attacks),
             "reason": res.get("reason") if res.get("blocked") else None,
-            "sources": [{"id": s["id"], "source": s["source"], "tier": s["tier"], "score": s["score"], "text": s["text"][:300]}
+            "vault_tokens": res.get("vault_tokens", []),
+            "answer_tokens": res.get("answer_tokens", []),
+            "proposed_actions": res.get("proposed_actions", []),
+            "mosaic": res.get("mosaic"),
+            "sources": [{"id": s["id"], "source": s["source"], "tier": s["tier"], "score": s["score"], "text": s["text"][:300],
+                         "vault_tokens": s.get("vault_tokens", [])}
                         for s in res.get("sources", [])]}
+
+@app.post("/api/break-glass")
+def break_glass_unmask(body: BreakGlassApprove):
+    """Pivot 2: Dual-custody cryptographic break-glass unmasking with SHA-256 audit logging."""
+    try:
+        with db() as conn:
+            return token_vault.approve_break_glass(
+                conn,
+                token_id=body.token_id.strip(),
+                requested_by=body.requested_by.strip(),
+                approved_by=body.approved_by.strip(),
+                justification=body.justification.strip(),
+            )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    except psycopg.OperationalError:
+        raise HTTPException(503, "The database is unavailable.")
+
+@app.post("/api/actions/execute")
+def execute_action(body: ActionExecute):
+    """Pivot 3: Execute a Stage 5.5 sandboxed banking action after verifying provenance and IAM tier."""
+    try:
+        with db() as conn:
+            return actions.execute_sandbox_action(conn, body.action_id, body.username.strip())
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    except psycopg.OperationalError:
+        raise HTTPException(503, "The database is unavailable.")
+
+@app.get("/api/factsheet")
+def factsheet_view():
+    """Pivot 5: Generate live CBUAE / UAE PDPL / Basel III / ISO 42001 compliance attestation FactSheet."""
+    with db() as conn:
+        return factsheet.generate_factsheet(conn)
 
 @app.get("/api/audit")
 def audit_view():

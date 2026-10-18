@@ -222,11 +222,11 @@ def build_pdf(output_path: str):
 
     story.append(create_callout(
         "EXECUTIVE BRIEF: The $100 Million Enterprise Dilemma",
-        "Every Tier-1 bank CEO wants Generative AI to boost branch productivity and customer intelligence. "
+        "Every Tier-1 bank CEO (such as Emirates NBD, HSBC, or Citi) wants Generative AI to boost branch productivity and customer intelligence. "
         "Yet every Chief Risk Officer (CRO) has blocked production deployment. Why? Because <b>Large Language Models are inherently non-deterministic</b>. "
         "A 99% safety rate is a catastrophic failure in banking: it means 1 out of 100 queries leaks a customer IBAN, Emirates ID, or VIP credit facility, "
         "triggering multimillion-dollar central bank fines under UAE CBUAE, GDPR, and Basel III frameworks. Prompt-level guardrails fail under adversarial jailbreaks.<br/><br/>"
-        "<b>Aegis-Z eliminates this risk not by hoping the model behaves, but through mathematical determinism: The AI cannot leak what the database engine refuses to return.</b>",
+        "<b>Aegis-Z eliminates this risk not by hoping the model behaves, but through mathematical determinism: The AI cannot leak what the DB never serves.</b>",
         border_color="#0F62FE",
         bg_color="#F4F8FD",
         width=page_width
@@ -273,9 +273,9 @@ def build_pdf(output_path: str):
             Paragraph("<font color='#059669'><b>VERIFIED</b></font> &bull; 244-block unbroken chain. DB triggers block UPDATE/DELETE; tamper detected.", table_cell)
         ],
         [
-            Paragraph("<b>Adversarial Harness</b>", table_cell_bold),
+            Paragraph("<b>Digital Immune System</b>", table_cell_bold),
             Paragraph("Autonomous Red-Teaming Testbed", table_cell),
-            Paragraph("<font color='#059669'><b>VERIFIED</b></font> &bull; 20 direct attacks blocked 100%. Continuous validation engine operational.", table_cell)
+            Paragraph("<font color='#059669'><b>VERIFIED</b></font> &bull; 20 direct attacks blocked 100%. Continuous 24/7 validation harness operational.", table_cell)
         ],
         [
             Paragraph("<b>Dual-Cockpit Gateway UI</b>", table_cell_bold),
@@ -715,21 +715,22 @@ def build_pdf(output_path: str):
     story.append(PageBreak())
 
     # =========================================================================
-    # PAGE 6: Autonomous Continuous Validation Harness & Security Roadmap
+    # PAGE 6: Autonomous Digital Immune System & Security Roadmap
     # =========================================================================
-    story.append(Paragraph("6. Autonomous Continuous Validation Harness & Security Roadmap", h2_style))
+    story.append(Paragraph("6. Autonomous Digital Immune System & Security Roadmap", h2_style))
     story.append(Paragraph(
-        "Enterprise security cannot rely on static assertions. Aegis-Z incorporates an <b>Autonomous Red-Teaming Harness</b> "
-        "designed to continuously probe the gateway with mutating adversarial attack patterns.",
+        "Enterprise security cannot rely on static assertions. Like a biological vaccine, Aegis-Z incorporates an "
+        "<b>Autonomous Digital Immune System</b>: an automated Red-Team agent that continuously bombards the gateway "
+        "with 100+ prompt injections, role escalations, and adversarial jailbreaks 24/7.",
         body_style
     ))
     story.append(Spacer(1, 5))
 
     story.append(create_callout(
-        "SCIENTIFIC HONESTY: Continuous Red-Teaming vs. 'Self-Healing' Claims",
+        "IMMUNE METAPHOR: Continuous Red-Teaming vs. 'Self-Healing' Claims",
         "Many AI projects make unbacked claims of 'autonomous self-healing'. In production banking, autonomous rule rewriting without "
         "human-in-the-loop oversight is unacceptable to risk regulators. We present the system with complete engineering transparency:<br/>"
-        "1. <b>Continuous Red-Teaming Harness:</b> The adversarial generator and automated leak judge are fully operational, "
+        "1. <b>Autonomous Digital Immune System:</b> The continuous adversarial generator and automated leak judge are fully operational, "
         "bombarding the pipeline with 20+ attack archetypes across multiple rounds.<br/>"
         "2. <b>Observed Empirical Finding:</b> Aegis-Z's deterministic SQL tier filter and regex input guard intercepted 100% of direct attacks across all 3 rounds. "
         "Because zero direct attacks succeeded, there were zero production failures to trigger emergency rule updates.<br/>"

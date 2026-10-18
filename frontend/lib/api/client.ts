@@ -4,9 +4,15 @@ import type {
   AskResponse,
   AuditEntry,
   AuditResponse,
+  BreakGlassApproveRequest,
+  BreakGlassApproveResponse,
   DemoUser,
+  FactSheetResponse,
   HealthResponse,
+  MosaicState,
+  ProposedAction,
   SourceChunk,
+  VaultToken,
 } from "./types";
 
 /** Model calls can be slow (guard, embedding, answer, plus provider retries). */
@@ -35,6 +41,21 @@ function parseUsers(value: unknown): DemoUser[] {
   });
 }
 
+function parseVaultTokens(value: unknown): VaultToken[] {
+  if (!Array.isArray(value)) return [];
+  const out: VaultToken[] = [];
+  value.forEach((item, i) => {
+    if (isRecord(item) && typeof item.token_id === "string" && typeof item.label === "string") {
+      out.push({
+        index: typeof item.index === "number" ? item.index : i,
+        token_id: item.token_id,
+        label: item.label,
+      });
+    }
+  });
+  return out;
+}
+
 function parseSource(item: unknown): SourceChunk {
   if (
     !isRecord(item) ||
@@ -46,7 +67,54 @@ function parseSource(item: unknown): SourceChunk {
   ) {
     return bad("answer");
   }
-  return { id: item.id, source: item.source, tier: item.tier, score: item.score, text: item.text };
+  return {
+    id: item.id,
+    source: item.source,
+    tier: item.tier,
+    score: item.score,
+    text: item.text,
+    vault_tokens: parseVaultTokens(item.vault_tokens),
+  };
+}
+
+function parseProposedActions(value: unknown): ProposedAction[] {
+  if (!Array.isArray(value)) return [];
+  const out: ProposedAction[] = [];
+  for (const item of value) {
+    if (!isRecord(item) || typeof item.id !== "number" || typeof item.action_type !== "string") continue;
+    out.push({
+      id: item.id,
+      action_type: item.action_type,
+      title: typeof item.title === "string" ? item.title : item.action_type,
+      description: typeof item.description === "string" ? item.description : "",
+      target_token: typeof item.target_token === "string" ? item.target_token : "RECORD",
+      proposed_by: typeof item.proposed_by === "string" ? item.proposed_by : "",
+      user_tier: typeof item.user_tier === "number" ? item.user_tier : 1,
+      required_tier: typeof item.required_tier === "number" ? item.required_tier : 2,
+      provenance_ok: item.provenance_ok !== false,
+      status: typeof item.status === "string" ? item.status : "sandboxed",
+      reason: typeof item.reason === "string" ? item.reason : undefined,
+      system: typeof item.system === "string" ? item.system : undefined,
+      executed_by: typeof item.executed_by === "string" ? item.executed_by : undefined,
+      receipt: typeof item.receipt === "string" ? item.receipt : undefined,
+      audit_hash: typeof item.audit_hash === "string" ? item.audit_hash : undefined,
+    });
+  }
+  return out;
+}
+
+function parseMosaic(value: unknown): MosaicState | null {
+  if (!isRecord(value) || typeof value.risk_score !== "number") return null;
+  return {
+    username: typeof value.username === "string" ? value.username : "",
+    risk_score: value.risk_score,
+    level: typeof value.level === "string" ? value.level : "safe",
+    turns_in_window: typeof value.turns_in_window === "number" ? value.turns_in_window : 1,
+    entities_tracked: typeof value.entities_tracked === "number" ? value.entities_tracked : 0,
+    sources_touched: typeof value.sources_touched === "number" ? value.sources_touched : 0,
+    nodes: Array.isArray(value.nodes) ? value.nodes.filter((n): n is string => typeof n === "string") : [],
+    advisory: typeof value.advisory === "string" ? value.advisory : undefined,
+  };
 }
 
 function parseAsk(value: unknown): AskResponse {
@@ -84,6 +152,65 @@ function parseAsk(value: unknown): AskResponse {
     learned_attacks_count: learned,
     reason: typeof value.reason === "string" ? value.reason : null,
     sources,
+    vault_tokens: parseVaultTokens(value.vault_tokens),
+    answer_tokens: parseVaultTokens(value.answer_tokens),
+    proposed_actions: parseProposedActions(value.proposed_actions),
+    mosaic: parseMosaic(value.mosaic),
+  };
+}
+
+function parseBreakGlass(value: unknown): BreakGlassApproveResponse {
+  if (!isRecord(value) || typeof value.token_id !== "string" || typeof value.plaintext !== "string") {
+    return bad("break-glass");
+  }
+  return {
+    request_id: typeof value.request_id === "number" ? value.request_id : 0,
+    token_id: value.token_id,
+    label: typeof value.label === "string" ? value.label : "PII",
+    plaintext: value.plaintext,
+    requested_by: typeof value.requested_by === "string" ? value.requested_by : "",
+    approved_by: typeof value.approved_by === "string" ? value.approved_by : "",
+    justification: typeof value.justification === "string" ? value.justification : "",
+    status: typeof value.status === "string" ? value.status : "approved",
+    audit_entry_id: typeof value.audit_entry_id === "number" ? value.audit_entry_id : undefined,
+    audit_hash: typeof value.audit_hash === "string" ? value.audit_hash : undefined,
+    hsm_key_id: typeof value.hsm_key_id === "string" ? value.hsm_key_id : undefined,
+  };
+}
+
+function parseActionExecute(value: unknown): ProposedAction {
+  const list = parseProposedActions([value]);
+  if (!list.length) return bad("action execution");
+  return list[0];
+}
+
+function parseFactSheet(value: unknown): FactSheetResponse {
+  if (!isRecord(value) || typeof value.factsheet_id !== "string" || !Array.isArray(value.controls)) {
+    return bad("factsheet");
+  }
+  const metrics: Record<string, number> = {};
+  if (isRecord(value.metrics)) {
+    for (const [k, v] of Object.entries(value.metrics)) {
+      if (typeof v === "number") metrics[k] = v;
+    }
+  }
+  return {
+    factsheet_id: value.factsheet_id,
+    generated_at: typeof value.generated_at === "string" ? value.generated_at : "",
+    platform: typeof value.platform === "string" ? value.platform : "",
+    chain_verified: value.chain_verified === true,
+    chain_message: typeof value.chain_message === "string" ? value.chain_message : "",
+    chain_head_hash: typeof value.chain_head_hash === "string" ? value.chain_head_hash : "",
+    pqc_signature: typeof value.pqc_signature === "string" ? value.pqc_signature : "",
+    metrics,
+    controls: value.controls.filter(isRecord).map((c) => ({
+      framework: String(c.framework ?? ""),
+      control_id: String(c.control_id ?? ""),
+      requirement: String(c.requirement ?? ""),
+      mechanism: String(c.mechanism ?? ""),
+      status: String(c.status ?? ""),
+      evidence: String(c.evidence ?? ""),
+    })),
   };
 }
 
@@ -173,6 +300,28 @@ export function askQuestion(body: AskRequest, options?: RequestOptions) {
     parseAsk,
     { timeoutMs: ASK_TIMEOUT_MS, ...options },
   );
+}
+
+export function approveBreakGlass(body: BreakGlassApproveRequest, options?: RequestOptions) {
+  return request(
+    "/api/break-glass",
+    { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
+    parseBreakGlass,
+    { timeoutMs: 20_000, ...options },
+  );
+}
+
+export function executeSandboxAction(body: { action_id: number; username: string }, options?: RequestOptions) {
+  return request(
+    "/api/actions/execute",
+    { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
+    parseActionExecute,
+    { timeoutMs: 20_000, ...options },
+  );
+}
+
+export function fetchFactSheet(options?: RequestOptions) {
+  return request("/api/factsheet", { method: "GET" }, parseFactSheet, { timeoutMs: 20_000, ...options });
 }
 
 export function fetchAudit(options?: RequestOptions) {

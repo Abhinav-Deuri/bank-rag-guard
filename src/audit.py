@@ -1,7 +1,10 @@
 """Tamper-evident audit log: each row stores a SHA-256 fingerprint that includes the previous row's fingerprint."""
 import hashlib, json
 from datetime import datetime, timezone
-from psycopg.types.json import Jsonb
+try:
+    from psycopg.types.json import Jsonb
+except ImportError:
+    Jsonb = lambda x: x
 
 GENESIS = "0" * 64                                   # the "previous fingerprint" of the very first entry
 

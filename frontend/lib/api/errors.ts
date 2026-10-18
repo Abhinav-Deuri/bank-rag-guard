@@ -80,7 +80,7 @@ export function errorFromResponse(status: number, body: unknown): ApiError {
       status,
     );
   }
-  if (status === 400) {
+  if (status === 400 || status === 403 || status === 404) {
     return new ApiError("bad_request", detail ?? "The backend rejected this request. Check the question and the selected user.", status);
   }
   if (status === 422) {

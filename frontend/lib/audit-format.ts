@@ -1,6 +1,6 @@
 import type { AuditEntry } from "@/lib/api/types";
 
-export type AuditKind = "question" | "answer" | "blocked" | "learned" | "other";
+export type AuditKind = "question" | "answer" | "blocked" | "learned" | "unmask" | "action" | "other";
 
 export interface AuditRow {
   id: number;
@@ -19,6 +19,12 @@ const KIND: Record<string, AuditKind> = {
   answer_returned: "answer",
   question_blocked: "blocked",
   guard_example_added: "learned",
+  break_glass_requested: "unmask",
+  break_glass_unmasked: "unmask",
+  break_glass_denied: "blocked",
+  agent_action_executed: "action",
+  agent_action_blocked: "blocked",
+  mosaic_risk_alert: "learned",
 };
 
 const LABEL: Record<AuditKind, string> = {
@@ -26,6 +32,8 @@ const LABEL: Record<AuditKind, string> = {
   answer: "Answer returned",
   blocked: "Blocked",
   learned: "Guard learned an attack",
+  unmask: "Break-Glass Unmasked (Dual-Custody)",
+  action: "Sandbox Action Executed",
   other: "",
 };
 
@@ -46,7 +54,7 @@ function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-function describe(kind: AuditKind, details: string): string {
+function describe(action: string, kind: AuditKind, details: string): string {
   let d: unknown;
   try {
     d = JSON.parse(details);
@@ -56,6 +64,26 @@ function describe(kind: AuditKind, details: string): string {
   }
   if (!isRecord(d)) return "";
 
+  if (action === "break_glass_unmasked" || action === "break_glass_requested" || action === "break_glass_denied") {
+    const tok = typeof d.token_id === "string" ? d.token_id : "Token";
+    const reqBy = typeof d.requested_by === "string" ? `req: ${d.requested_by}` : "";
+    const appBy = typeof d.approved_by === "string" ? `co-signer: ${d.approved_by}` : "";
+    const rsn = typeof d.reason === "string" ? clip(d.reason, 75) : "";
+    const just = typeof d.justification === "string" ? `“${clip(d.justification, 65)}”` : "";
+    return [tok, reqBy, appBy, rsn || just].filter(Boolean).join(" · ");
+  }
+  if (action === "agent_action_executed" || action === "agent_action_blocked") {
+    const actType = typeof d.action_type === "string" ? d.action_type : "Action";
+    const target = typeof d.target_token === "string" ? d.target_token : "";
+    const rec = typeof d.receipt === "string" ? d.receipt : "";
+    const rsn = typeof d.reason === "string" ? clip(d.reason, 80) : "";
+    return [actType, target, rec, rsn].filter(Boolean).join(" · ");
+  }
+  if (action === "mosaic_risk_alert") {
+    const score = typeof d.risk_score === "number" ? `Risk ${d.risk_score}%` : "";
+    const ents = typeof d.entities_tracked === "number" ? `${d.entities_tracked} entities linked` : "";
+    return [score, ents].filter(Boolean).join(" · ");
+  }
   if (kind === "question") {
     const tier = typeof d.tier === "number" ? `Tier ${d.tier}` : "";
     const q = typeof d.question === "string" ? `“${clip(d.question)}”` : "";
@@ -102,8 +130,15 @@ export function toAuditRow(entry: AuditEntry): AuditRow {
     id: entry.id,
     actor: entry.actor,
     kind,
-    label: LABEL[kind] || entry.action.replace(/_/g, " "),
-    detail: describe(kind, entry.details),
+    label:
+      entry.action === "agent_action_blocked"
+        ? "Sandbox Blocked Action"
+        : entry.action === "break_glass_denied"
+          ? "Break-Glass Denied (Single-Custody)"
+          : entry.action === "mosaic_risk_alert"
+            ? "Mosaic Risk Alert"
+            : LABEL[kind] || entry.action.replace(/_/g, " "),
+    detail: describe(entry.action, kind, entry.details),
     time: formatTime(entry.ts),
     hash: entry.hash ?? null,
     prevHash: entry.prevHash ?? null,

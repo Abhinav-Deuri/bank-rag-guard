@@ -2,11 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import type { ApiError } from "@/lib/api/errors";
-import type { AskResponse } from "@/lib/api/types";
+import type { AskResponse, VaultToken } from "@/lib/api/types";
 import { useElapsed } from "@/hooks/use-elapsed";
 import { ProximityGlow } from "@/components/bank-rag/landing/proximity-glow";
 import { cn } from "@/lib/utils";
 import { Redacted } from "./redacted";
+import { ActionSandboxPanel } from "./action-sandbox";
 
 export interface Turn {
   key: number;
@@ -115,6 +116,13 @@ function Facts({ turn }: { turn: Turn }) {
       ];
   const caught = sum(r.masked_in_answer);
   if (caught) facts.push({ k: "Caught in answer", v: String(caught), tone: "warn" });
+  if (r.mosaic) {
+    facts.push({
+      k: "Mosaic graph risk",
+      v: `${r.mosaic.risk_score}% (${r.mosaic.level})`,
+      tone: r.mosaic.level === "critical" ? "bad" : r.mosaic.level === "elevated" ? "warn" : undefined,
+    });
+  }
 
   return (
     <dl className="mt-2.5 flex flex-wrap gap-y-1 text-[12.5px]" aria-label="What the safeguards did">
@@ -135,6 +143,11 @@ function Body({
   onCite,
   onRetry,
   onStop,
+  currentUsername,
+  currentUserTier,
+  unmaskedMap,
+  onSelectToken,
+  onActionExecuted,
 }: {
   turn: Turn;
   active: boolean;
@@ -142,6 +155,11 @@ function Body({
   onCite: (n: number) => void;
   onRetry: () => void;
   onStop: () => void;
+  currentUsername: string;
+  currentUserTier: number;
+  unmaskedMap?: Record<string, string>;
+  onSelectToken?: (token: VaultToken) => void;
+  onActionExecuted: () => void;
 }) {
   if (turn.status === "pending") return <Pending turn={turn} onStop={onStop} />;
 
@@ -186,12 +204,27 @@ function Body({
     );
   }
 
+  const tokensForAnswer = r.answer_tokens?.length ? r.answer_tokens : r.vault_tokens;
+
   return (
-    <Redacted
-      text={r.answer}
-      className="mt-3 max-w-[64ch] font-doc text-[16.5px] leading-[1.7]"
-      cite={{ count: r.sources.length, selected: active ? cite : null, onCite }}
-    />
+    <>
+      <Redacted
+        text={r.answer}
+        className="mt-3 max-w-[64ch] font-doc text-[16.5px] leading-[1.7]"
+        cite={{ count: r.sources.length, selected: active ? cite : null, onCite }}
+        vaultTokens={tokensForAnswer}
+        unmaskedMap={unmaskedMap}
+        onSelectToken={onSelectToken}
+      />
+      {r.proposed_actions && r.proposed_actions.length > 0 && (
+        <ActionSandboxPanel
+          actions={r.proposed_actions}
+          currentUsername={currentUsername}
+          currentUserTier={currentUserTier}
+          onExecuted={onActionExecuted}
+        />
+      )}
+    </>
   );
 }
 
@@ -203,6 +236,11 @@ export function Thread({
   onCite,
   onRetry,
   onStop,
+  currentUsername = "teller1",
+  currentUserTier = 1,
+  unmaskedMap,
+  onSelectToken,
+  onActionExecuted = () => {},
 }: {
   turns: Turn[];
   activeKey: number | null;
@@ -212,6 +250,11 @@ export function Thread({
   onCite: (key: number, n: number) => void;
   onRetry: (turn: Turn) => void;
   onStop: () => void;
+  currentUsername?: string;
+  currentUserTier?: number;
+  unmaskedMap?: Record<string, string>;
+  onSelectToken?: (token: VaultToken) => void;
+  onActionExecuted?: () => void;
 }) {
   const lastRef = useRef<HTMLElement | null>(null);
   const count = turns.length;
@@ -283,6 +326,11 @@ export function Thread({
                   onCite={(n) => onCite(turn.key, n)}
                   onRetry={() => onRetry(turn)}
                   onStop={onStop}
+                  currentUsername={currentUsername}
+                  currentUserTier={currentUserTier}
+                  unmaskedMap={unmaskedMap}
+                  onSelectToken={onSelectToken}
+                  onActionExecuted={onActionExecuted}
                 />
 
                 <Facts turn={turn} />
