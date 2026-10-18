@@ -1,24 +1,25 @@
-import { FileText, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import mark from "./aegis-z-mark.png";
 
-/** Shield around a document. Drawn from Lucide icons; deliberately not an IBM mark. */
+/**
+ * The AEGIS-Z shield. The image is used as a mask, so the shield takes the current text colour:
+ * light on the dark terminal screen, dark in the plain view.
+ */
 export function BrandMark({ className }: { className?: string }) {
   return (
     <span
       aria-hidden
-      className={cn("relative inline-grid size-8 place-items-center text-accent", className)}
-    >
-      <Shield className="absolute inset-0 size-full" strokeWidth={1.4} />
-      <FileText className="relative size-[44%]" strokeWidth={1.8} />
-    </span>
-  );
-}
-
-export function BrandWordmark({ className }: { className?: string }) {
-  return (
-    <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <BrandMark />
-      <span className="text-[1.05rem] font-semibold tracking-tight text-fg">AEGIS-Z</span>
-    </span>
+      className={cn("inline-block size-[1.25em] shrink-0 bg-current align-[-0.22em]", className)}
+      style={{
+        WebkitMaskImage: `url(${mark.src})`,
+        maskImage: `url(${mark.src})`,
+        WebkitMaskSize: "contain",
+        maskSize: "contain",
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskPosition: "center",
+        maskPosition: "center",
+      }}
+    />
   );
 }

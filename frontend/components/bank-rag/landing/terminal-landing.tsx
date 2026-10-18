@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { TermCursor } from "@/components/bank-rag/term-cursor";
+import { BrandMark } from "@/components/bank-rag/brand-mark";
 import { LandingMotion } from "./landing-motion";
 
 /*
@@ -183,7 +184,10 @@ export function TerminalLanding() {
       <TermCursor />
       <LandingMotion />
       <header className="sticky top-0 z-10 flex flex-wrap items-baseline gap-x-6 gap-y-1 border-b border-line bg-[var(--screen)] px-4 py-2.5 sm:px-6">
-        <span className="font-semibold">AEGIS-Z</span>
+        <span className="inline-flex items-center gap-[0.6ch] font-semibold">
+          <BrandMark className="text-fg" />
+          AEGIS-Z
+        </span>
         <span className="hidden text-dim md:inline">Bank document assistant</span>
         <nav aria-label="Page" className="ms-auto flex flex-wrap items-baseline gap-x-5 gap-y-1">
           <a href="#how" className="term-key">
