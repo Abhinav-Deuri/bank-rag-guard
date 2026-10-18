@@ -50,7 +50,7 @@ function ChainStatus({ audit }: { audit: Audit }) {
 export function AuditLog({ audit }: { audit: Audit }) {
   const [onlyBlocked, setOnlyBlocked] = useState(false);
   const rows = useMemo(() => (audit.data?.entries ?? []).map(toAuditRow), [audit.data]);
-  const shown = onlyBlocked ? rows.filter((r) => r.kind === "blocked") : rows;
+  const shown = onlyBlocked ? rows.filter((r) => r.kind === "blocked" || r.kind === "alert") : rows;
   const hasHashes = rows.some((r) => r.hash);
   const hasTimes = rows.some((r) => r.time);
 
@@ -69,7 +69,7 @@ export function AuditLog({ audit }: { audit: Audit }) {
         <div className="flex items-baseline gap-3.5 text-[13px]" role="group" aria-label="Show entries">
           {[
             { on: !onlyBlocked, label: "All", set: false },
-            { on: onlyBlocked, label: "Blocked only", set: true },
+            { on: onlyBlocked, label: "Blocks and alerts", set: true },
           ].map((f) => (
             <button
               key={f.label}
@@ -118,7 +118,7 @@ export function AuditLog({ audit }: { audit: Audit }) {
                     <td className="border-b border-line-soft py-2 pe-2 text-dim">{row.id}</td>
                     {hasTimes && <td className="border-b border-line-soft px-2 py-2 text-faint">{row.time}</td>}
                     <td className="border-b border-line-soft px-2 py-2 font-sans text-[13px]">
-                      <span className={cn(row.kind === "blocked" ? "text-bad" : row.kind === "learned" ? "text-warn" : row.kind === "reveal" ? "text-accent" : row.kind === "answer" ? "text-fg" : "text-dim")}>
+                      <span className={cn(row.kind === "blocked" ? "text-bad" : row.kind === "learned" || row.kind === "alert" ? "text-warn" : row.kind === "reveal" ? "text-accent" : row.kind === "answer" ? "text-fg" : "text-dim")}>
                         {row.label}
                       </span>{" "}
                       <span className="text-faint">{row.actor}</span>

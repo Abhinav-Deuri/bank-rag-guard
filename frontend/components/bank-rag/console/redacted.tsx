@@ -1,56 +1,46 @@
 import { Fragment, type ReactNode } from "react";
-import type { VaultToken } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 /**
- * Render text with redacted personal data and clickable source citations.
+ * Renders backend text as plain React text (never HTML).
  *
  * - Mask tags such as [NAME] or [IBAN] become redaction bars, roughly as wide as the kind of
  *   value they replaced, so a reader can see that something was removed and what kind it was.
- * - When `vaultTokens` and `onSelectToken` are supplied (Pivot 2: Cryptographic Break-Glass),
- *   each redaction bar displays its deterministic token ID (e.g. IBAN · 884A) and can be clicked
- *   to initiate Dual-Custody Compliance Unmasking, or displays the unmasked plaintext once approved.
  * - "Source 3" / "Sources 1 and 2" become footnote buttons when `onCite` is given.
  * - A small subset of Markdown the model tends to use: blank-line paragraphs, "- " list items
  *   and **bold**.
  */
-const TOKENS = /(\[[A-Z][A-Z0-9_]*\]|\*\*.*?\*\*|\bSources?\s+\d+(?:(?:,\s*|\s+and\s+)\d+)*\b)/gi;
-const TAG = /^\[([A-Z][A-Z0-9_]*)\]$/i;
-const CITE = /\bSources?\s+(\d+(?:(?:,\s*|\s+and\s+)\d+)*)\b/i;
 
+const TAG = /^\[([A-Z][A-Z0-9_]*)\]$/;
+const TOKENS = /(\[[A-Z][A-Z0-9_]*\]|\*\*[^*\n]+\*\*|\bSources?\s+\d+(?:\s*(?:,|and|&|–|-|to)\s*\d+)*)/g;
+
+/** Approximate printed length of each kind of value, in characters of the bar's font. */
 const WIDTH: Record<string, number> = {
-  NAME: 16,
-  IBAN: 23,
-  EMIRATES_ID: 18,
-  PHONE: 12,
-  EMAIL: 20,
-  CREDIT_CARD: 16,
-  CARD_NUMBER: 16,
+  NAME: 9,
+  IBAN: 17,
+  EMIRATES_ID: 13,
+  PHONE: 10,
+  EMAIL: 14,
+  CARD: 13,
+  CREDIT_CARD: 13,
   CARD_CVV: 4,
-  CARD_EXPIRY: 6,
-  SSN: 11,
-  BANK_ACCOUNT: 10,
+  PIN: 5,
+  ACCOUNT_NUMBER: 11,
+  SSN: 10,
   BIC: 9,
-  PIN: 4,
-  DATE_OF_BIRTH: 10,
-  CRYPTO_ADDRESS: 24,
+  IP_ADDRESS: 11,
+  MAC_ADDRESS: 13,
+  URL: 14,
+  CRYPTO_ADDRESS: 18,
 };
 
 const LABEL: Record<string, string> = {
-  NAME: "NAME",
-  IBAN: "IBAN",
   EMIRATES_ID: "EMIRATES ID",
-  PHONE: "PHONE",
-  EMAIL: "EMAIL",
+  ACCOUNT_NUMBER: "ACCOUNT",
   CREDIT_CARD: "CARD",
-  CARD_NUMBER: "CARD",
   CARD_CVV: "CVV",
-  CARD_EXPIRY: "EXPIRY",
-  SSN: "SSN",
-  BANK_ACCOUNT: "ACCOUNT",
-  BIC: "BIC",
-  PIN: "PIN",
-  DATE_OF_BIRTH: "DOB",
+  IP_ADDRESS: "IP",
+  MAC_ADDRESS: "MAC",
   CRYPTO_ADDRESS: "WALLET",
 };
 
@@ -67,179 +57,102 @@ export interface RevealProps {
   onRequest?: (token: string) => void;
 }
 
-export function RedactionBar({
-  tag,
-  vaultToken,
-  unmaskedValue,
-  onSelectToken,
-  reveal,
-}: {
-  tag: string;
-  vaultToken?: VaultToken;
-  unmaskedValue?: string;
-  onSelectToken?: (token: VaultToken) => void;
-  reveal?: RevealProps;
-}) {
+export function RedactionBar({ tag, reveal }: { tag: string; reveal?: RevealProps }) {
   const { base, n } = splitToken(tag);
   const word = LABEL[base] ?? base.replace(/_/g, " ");
-  const baseLabel = n ? `${word} ${n}` : word;
-  const shortHex = vaultToken?.token_id.split("_TOKEN_")[1];
-  const displayLabel = shortHex ? `${word} · ${shortHex}` : baseLabel;
-  const width = Math.max(WIDTH[base] ?? 8, displayLabel.length + 2);
+  const label = n ? `${word} ${n}` : word;
+  const width = Math.max(WIDTH[base] ?? 8, label.length + 1);
+  const value = reveal?.values[tag];
 
-  // Check if revealed via legacy reveal panel
-  const legacyVal = reveal?.values[tag];
-  const finalVal = unmaskedValue || legacyVal;
-
-  if (finalVal) {
+  if (value) {
     return (
       <span
-        className="inline-flex items-center gap-1.5 rounded border border-ok/50 bg-ok/15 px-2 py-0.5 font-mono text-[12.5px] font-medium text-ok align-baseline [unicode-bidi:isolate]"
+        className="mx-px rounded-[2px] border border-accent px-1 font-ledger text-[0.86em] text-fg [unicode-bidi:isolate]"
         dir="ltr"
-        title={`Unmasked via Dual-Custody Break-Glass (${vaultToken?.token_id ?? baseLabel}) — logged to SHA-256 chain`}
+        title={`${label}, shown after two-person approval`}
       >
-        <span className="text-[10px] uppercase tracking-wider opacity-80">{word}:</span>
-        <span className="font-semibold underline decoration-ok/50 underline-offset-2">{finalVal}</span>
+        {value}
       </span>
     );
   }
-
-  if (vaultToken && onSelectToken) {
-    return (
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelectToken(vaultToken);
-        }}
-        className="redact-bar cursor-pointer transition-all hover:border-accent hover:text-accent hover:shadow-[0_0_10px_rgba(56,189,248,0.28)]"
-        style={{ minWidth: `${width}ch` }}
-        title={`Deterministic token ${vaultToken.token_id} — Click to request Just-in-Time Cryptographic Break-Glass Unmasking`}
-      >
-        {displayLabel} 🔒
-      </button>
-    );
-  }
-
   if (reveal?.onRequest && n) {
     return (
       <button
         type="button"
         className="redact-bar cursor-pointer hover:outline hover:outline-1 hover:outline-accent"
         style={{ minWidth: `${width}ch` }}
-        title={`Request to reveal ${baseLabel}. A second person must approve.`}
-        aria-label={`${baseLabel}, removed. Request to reveal.`}
+        title={`Request to reveal ${label}. A second person must approve.`}
+        aria-label={`${label}, removed. Request to reveal.`}
         onClick={(e) => {
           e.stopPropagation();
           reveal.onRequest?.(tag);
         }}
       >
-        {baseLabel}
+        {label}
       </button>
     );
   }
-
   return (
-    <span
-      className="redact-bar"
-      style={{ minWidth: `${width}ch` }}
-      title={`${word.toLowerCase()} removed before the model read this`}
-    >
-      {displayLabel}
+    <span className="redact-bar" style={{ minWidth: `${width}ch` }} title={`${word.toLowerCase()} removed before the model read this`}>
+      {label}
     </span>
   );
 }
 
 export interface CiteProps {
-  active: number | null;
+  /** Number of sources returned with this answer; references beyond it stay plain text. */
+  count: number;
+  selected: number | null;
   onCite: (n: number) => void;
 }
 
-interface TokenCursor {
-  byLabel: Record<string, number>;
-  all: VaultToken[];
-  unmaskedMap?: Record<string, string>;
-  onSelectToken?: (token: VaultToken) => void;
-  reveal?: RevealProps;
-}
-
-function nextTokenForLabel(tag: string, cursor: TokenCursor | undefined): VaultToken | undefined {
-  if (!cursor || !cursor.all.length) return undefined;
-  const { base } = splitToken(tag);
-  const matches = cursor.all.filter((t) => t.label === tag || t.label === base);
-  if (!matches.length) return undefined;
-  const idx = cursor.byLabel[base] ?? 0;
-  cursor.byLabel[base] = idx + 1;
-  return matches[idx % matches.length];
-}
-
-function inline(
-  text: string,
-  cite: CiteProps | undefined,
-  keyBase: string,
-  cursor?: TokenCursor,
-): ReactNode[] {
+function inline(text: string, cite: CiteProps | undefined, keyBase: string, reveal?: RevealProps): ReactNode[] {
   const out: ReactNode[] = [];
   text.split(TOKENS).forEach((part, i) => {
     if (!part) return;
     const key = `${keyBase}-${i}`;
     const tag = part.match(TAG);
     if (tag) {
-      const vt = nextTokenForLabel(tag[1], cursor);
-      const unmasked = vt && cursor?.unmaskedMap ? cursor.unmaskedMap[vt.token_id] : undefined;
-      out.push(
-        <RedactionBar
-          key={key}
-          tag={tag[1]}
-          vaultToken={vt}
-          unmaskedValue={unmasked}
-          onSelectToken={cursor?.onSelectToken}
-          reveal={cursor?.reveal}
-        />,
-      );
+      out.push(<RedactionBar key={key} tag={tag[1]} reveal={reveal} />);
       return;
     }
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       out.push(
         <strong key={key} className="font-semibold text-fg">
-          {inline(part.slice(2, -2), cite, key, cursor)}
+          {inline(part.slice(2, -2), cite, key, reveal)}
         </strong>,
       );
       return;
     }
-    const match = part.match(CITE);
-    if (match && cite) {
-      const numbers = match[1]
-        .split(/(?:,\s*|\s+and\s+)/)
-        .map((s) => Number(s.trim()))
-        .filter((n) => Number.isInteger(n) && n > 0);
-      if (numbers.length) {
-        out.push(
-          <span key={key} className="whitespace-nowrap font-sans text-xs">
-            {" "}
-            {numbers.map((n, idx) => {
-              const active = cite.active === n;
-              return (
-                <button
-                  key={`${key}-${n}`}
-                  type="button"
-                  onClick={() => cite.onCite(n)}
-                  aria-pressed={active}
-                  className={cn(
-                    "inline-flex h-4 min-w-4 items-center justify-center rounded px-1 text-[11px] font-medium leading-none tabular-nums transition-colors",
-                    idx > 0 && "ms-0.5",
-                    active ? "bg-accent text-white" : "bg-panel-soft text-dim hover:bg-hover hover:text-fg",
-                  )}
-                  title={`Source ${n}`}
-                >
-                  {n}
-                </button>
-              );
-            })}
-          </span>,
-        );
-        return;
-      }
+    if (cite && /^Sources?\s+\d/.test(part)) {
+      out.push(
+        <Fragment key={key}>
+          {part.split(/(\d+)/).map((bit, j) => {
+            const n = Number(bit);
+            if (!/^\d+$/.test(bit) || n < 1 || n > cite.count) return bit;
+            const on = cite.selected === n;
+            return (
+              <button
+                key={j}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cite.onCite(n);
+                }}
+                aria-pressed={on}
+                aria-label={`Show source ${n}`}
+                className={cn(
+                  "num px-px font-sans font-semibold underline decoration-1 underline-offset-[3px]",
+                  on ? "text-accent" : "text-dim hover:text-fg",
+                )}
+              >
+                {bit}
+              </button>
+            );
+          })}
+        </Fragment>,
+      );
+      return;
     }
     out.push(part);
   });
@@ -252,25 +165,14 @@ export function Redacted({
   reveal,
   className,
   paragraphClassName = "mb-2.5 last:mb-0",
-  vaultTokens,
-  unmaskedMap,
-  onSelectToken,
 }: {
   text: string;
   cite?: CiteProps;
   reveal?: RevealProps;
   className?: string;
   paragraphClassName?: string;
-  vaultTokens?: VaultToken[];
-  unmaskedMap?: Record<string, string>;
-  onSelectToken?: (token: VaultToken) => void;
 }) {
   const blocks = text.trim().split(/\n\s*\n/);
-  const cursor: TokenCursor | undefined =
-    (vaultTokens && vaultTokens.length) || reveal || onSelectToken
-      ? { byLabel: {}, all: vaultTokens ?? [], unmaskedMap, onSelectToken, reveal }
-      : undefined;
-
   return (
     <div dir="auto" className={cn("[overflow-wrap:anywhere]", className)}>
       {blocks.map((block, b) => {
@@ -280,7 +182,7 @@ export function Redacted({
           return (
             <ul key={b} className={cn("list-disc ps-5", paragraphClassName)}>
               {lines.map((l, i) => (
-                <li key={i}>{inline(l.replace(/^\s*[-*•]\s+/, ""), cite, `${b}-${i}`, cursor)}</li>
+                <li key={i}>{inline(l.replace(/^\s*[-*•]\s+/, ""), cite, `${b}-${i}`, reveal)}</li>
               ))}
             </ul>
           );
@@ -290,7 +192,7 @@ export function Redacted({
             {lines.map((l, i) => (
               <Fragment key={i}>
                 {i > 0 && <br />}
-                {inline(l.replace(/^\s*[-*•]\s+/, "• "), cite, `${b}-${i}`, cursor)}
+                {inline(l.replace(/^\s*[-*•]\s+/, "• "), cite, `${b}-${i}`, reveal)}
               </Fragment>
             ))}
           </p>

@@ -65,6 +65,15 @@ const withChain = (entries) =>
 const VALUES_T1 = { NAME_1: "Fatima Al Mansoori", CARD_1: "4111 1111 1111 1111", IBAN_1: "AE07 0331 2345 6789 0123 456", PHONE_1: "+971 50 123 4567", NAME_2: "مريم الشامسي", IBAN_2: "AE46 0260 0012 3456 7890 101", NAME_3: "Sara Shackleton" };
 const VALUES_T3 = { NAME_1: "Omar Haddad" };
 const answers = new Map();          // answer_id -> { user, values }
+const seen = new Map();             // username -> distinct customer count this hour (mosaic check)
+const MOSAIC_LIMIT = 6;
+function mosaic(username, customers) {
+  const n = (seen.get(username) ?? 0) + customers;
+  seen.set(username, n);
+  const crossed = n >= MOSAIC_LIMIT && n - customers < MOSAIC_LIMIT;
+  if (crossed) audit(username, "mosaic_alert", { customers_last_hour: n, limit: MOSAIC_LIMIT, answer_id: state.counter });
+  return { customers_last_hour: n, limit: MOSAIC_LIMIT, alert: n >= MOSAIC_LIMIT };
+}
 const requests = [];                // reveal requests
 const REQUESTERS = new Set(["compliance"]);
 const APPROVERS = new Set(["compliance", "auditor"]);
@@ -152,11 +161,11 @@ createServer(async (req, res) => {
     if (contracts && user.tier < 2) {
       // The backend searches only tier-1 passages for a teller and returns the best ones; none is a contract.
       answers.set(state.counter, { user: user.username, values: VALUES_T1 });
-      return json(res, 200, { username: user.username, tier: user.tier, blocked: false, answer_id: state.counter, answer: "The documents provided do not contain information about contract termination or confidentiality.", dropped_passages: 0, masked_in_context: { NAME: 3, IBAN: 2, CARD: 1, PHONE: 1 }, masked_in_answer: {}, learned_attacks_count: 0, sources: SOURCES_T1 });
+      return json(res, 200, { username: user.username, tier: user.tier, mosaic: mosaic(user.username, 3), blocked: false, answer_id: state.counter, answer: "The documents provided do not contain information about contract termination or confidentiality.", dropped_passages: 0, masked_in_context: { NAME: 3, IBAN: 2, CARD: 1, PHONE: 1 }, masked_in_answer: {}, learned_attacks_count: 0, sources: SOURCES_T1 });
     }
     if (contracts) {
       answers.set(state.counter, { user: user.username, values: VALUES_T3 });
-      return json(res, 200, { username: user.username, tier: user.tier, blocked: false, answer_id: state.counter, answer: "The contracts allow either party to terminate with thirty days' written notice. Confidentiality obligations last five years after termination and survive expiry, with a carve-out for disclosures required by law (notice goes to [NAME_1]).\n\nSources 1 and 2 support this.", dropped_passages: 1, masked_in_context: { NAME: 1 }, masked_in_answer: {}, learned_attacks_count: 1, sources: SOURCES_T3 });
+      return json(res, 200, { username: user.username, tier: user.tier, mosaic: mosaic(user.username, 0), blocked: false, answer_id: state.counter, answer: "The contracts allow either party to terminate with thirty days' written notice. Confidentiality obligations last five years after termination and survive expiry, with a carve-out for disclosures required by law (notice goes to [NAME_1]).\n\nSources 1 and 2 support this.", dropped_passages: 1, masked_in_context: { NAME: 1 }, masked_in_answer: {}, learned_attacks_count: 1, sources: SOURCES_T3 });
     }
     const arabic = /[؀-ۿ]/.test(q);
     const sources = q.includes("__nosources__") ? [] : SOURCES_T1;
@@ -166,6 +175,7 @@ createServer(async (req, res) => {
       username: user.username,
       tier: user.tier,
       blocked: false,
+      mosaic: mosaic(user.username, sources.length ? 3 : 0),
       answer: arabic
         ? "تتعلق الشكاوى بمعاملات متنازع عليها على بطاقات الدفع، ومنها شكوى العميل [NAME_2] بقيمة 980 درهم على الحساب [IBAN_2]."
         : "Complaints about disputed card transactions include a case where customer [NAME_1] disputed a charge of AED 1,240 on card [CARD_1], and account [IBAN_1] flagged for review (Source 1). One mailbox thread also asks whether a disputed invoice was settled before quarter close.",

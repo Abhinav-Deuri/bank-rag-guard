@@ -6,7 +6,7 @@ import { Console } from "@/components/bank-rag/console/console";
 
 export const metadata: Metadata = {
   title: "Workspace",
-  description: "Explore the AEGIS-Z sovereign AI security gateway console as a demo user, verify real-time guardrails, and audit tamper-evident logs.",
+  description: "Ask as a demo user and see what was searched, masked and withheld, then verify the tamper-evident audit log.",
 };
 
 export default function WorkspacePage() {
