@@ -13,6 +13,8 @@ import { SourcesPane } from "./sources-pane";
 import { AuditLog } from "./audit-log";
 import { Thread, tierRange, type NextStep, type Turn } from "./thread";
 import { RevealPanel, type RevealDraft } from "./reveal-panel";
+import { BootScreen } from "./boot-screen";
+import { TermCursor } from "@/components/bank-rag/term-cursor";
 import type { RevealProps } from "./redacted";
 
 /*
@@ -417,6 +419,8 @@ export function Console() {
 
   return (
     <div className="term flex h-dvh flex-col overflow-hidden text-fg">
+      <TermCursor />
+      <BootScreen users={usersState} audit={audit} />
       {/* Title line */}
       <header className="flex shrink-0 flex-wrap items-baseline gap-x-6 gap-y-1 border-b border-line px-3 py-2 sm:px-5">
         <Link href="/" className="font-semibold text-fg" aria-label="AEGIS-Z overview">

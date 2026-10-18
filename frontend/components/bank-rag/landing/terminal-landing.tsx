@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { TermCursor } from "@/components/bank-rag/term-cursor";
+import { LandingMotion } from "./landing-motion";
 
 /*
   The landing page in the same operator-screen style as the workspace (IBM 3279 colours, IBM Plex
@@ -12,6 +14,19 @@ const WORKSPACE = "/workspace";
 
 function Bar({ children }: { children: ReactNode }) {
   return <span className="redact-bar">{children}</span>;
+}
+
+/** Text painted onto the screen one character at a time (CSS only; the full text is in the DOM). */
+function Painted({ text }: { text: string }) {
+  return (
+    <>
+      {Array.from(text).map((ch, i) => (
+        <span key={i} aria-hidden className="term-paint" style={{ "--c": i } as CSSProperties}>
+          {ch}
+        </span>
+      ))}
+    </>
+  );
 }
 
 function Box({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
@@ -154,6 +169,8 @@ const LIMITS: { title: string; body: string }[] = [
 export function TerminalLanding() {
   return (
     <div className="term flex min-h-dvh flex-col text-fg">
+      <TermCursor />
+      <LandingMotion />
       <header className="sticky top-0 z-10 flex flex-wrap items-baseline gap-x-6 gap-y-1 border-b border-line bg-black px-4 py-2.5 sm:px-6">
         <span className="font-semibold">AEGIS-Z</span>
         <span className="hidden text-dim md:inline">Bank document assistant</span>
@@ -173,8 +190,12 @@ export function TerminalLanding() {
       <main id="main" className="flex-1">
         <section className="mx-auto grid w-full max-w-7xl gap-x-14 gap-y-12 px-4 pb-20 pt-14 sm:px-6 sm:pt-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-start">
           <div className="min-w-0">
-            <h1 className="max-w-[16ch] text-[clamp(2.1rem,5.2vw,3.9rem)] font-semibold leading-[1.08] tracking-[-0.02em] text-fg">
-              Secure answers start before the model.<span aria-hidden className="term-cursor ms-[0.15ch]" />
+            <h1
+              aria-label="Secure answers start before the model."
+              className="max-w-[16ch] text-[clamp(2.1rem,5.2vw,3.9rem)] font-semibold leading-[1.08] tracking-[-0.02em] text-fg"
+            >
+              <Painted text="Secure answers start before the model." />
+              <span aria-hidden className="term-cursor ms-[0.15ch]" />
             </h1>
             <p className="mt-6 max-w-[58ch] text-[15px] leading-relaxed text-dim">
               A document assistant for bank staff. It answers from customer complaints, contracts and internal email,
@@ -204,13 +225,15 @@ export function TerminalLanding() {
             <p className="mt-3 max-w-[64ch] text-dim">
               Seven steps, in order. The workspace shows each one under every answer, so you can check them as you go.
             </p>
-            <ol className="mt-10 border-t border-line-soft">
+            <ol data-boot className="mt-10 border-t border-line-soft">
               {STEPS.map((s, i) => (
                 <li
                   key={s.stage}
-                  className="grid gap-x-6 gap-y-1 border-b border-line-soft py-5 sm:grid-cols-[4ch_18ch_minmax(0,64ch)]"
+                  style={{ "--i": i } as CSSProperties}
+                  className="boot-row grid gap-x-6 gap-y-1 border-b border-line-soft py-5 sm:grid-cols-[4ch_7ch_18ch_minmax(0,60ch)]"
                 >
                   <span className="text-faint">{String(i + 1).padStart(2, "0")}</span>
+                  <span aria-hidden className="boot-tag whitespace-pre max-sm:hidden" />
                   <span className="text-accent">{s.stage}</span>
                   <p className="text-dim">{s.does}</p>
                 </li>

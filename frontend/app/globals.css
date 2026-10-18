@@ -545,3 +545,160 @@
 .term-key-primary:focus-visible {
   background: var(--ok);
 }
+
+/* ---------- Block cursor (TermCursor) ---------- */
+.has-term-cursor,
+.has-term-cursor * {
+  cursor: none;
+}
+.has-term-cursor :is(input, textarea, select, [contenteditable="true"]) {
+  cursor: text;
+}
+.term-pointer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: #fff;
+  mix-blend-mode: difference;
+  opacity: 0;
+  transition: opacity 0.15s;
+  will-change: transform, width, height;
+}
+.term-pointer[data-on="1"] {
+  opacity: 1;
+}
+.term-pointer[data-hidden="1"] {
+  opacity: 0;
+}
+.term-pointer[data-rest="1"]:not([data-over="1"]) {
+  animation: term-blink 1.06s steps(1) infinite;
+}
+.term-pointer[data-down="1"] {
+  background: #9ff0a6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .term-pointer {
+    transition: none;
+  }
+}
+/* Where supported, invert and desaturate what is behind the block, so it is strictly black and white. */
+@supports (backdrop-filter: invert(1)) or (-webkit-backdrop-filter: invert(1)) {
+  .term-pointer {
+    background: transparent;
+    mix-blend-mode: normal;
+    -webkit-backdrop-filter: grayscale(1) invert(1) contrast(1.6);
+    backdrop-filter: grayscale(1) invert(1) contrast(1.6);
+  }
+  .term-pointer[data-down="1"] {
+    background: transparent;
+    -webkit-backdrop-filter: grayscale(1) contrast(1.8);
+    backdrop-filter: grayscale(1) contrast(1.8);
+  }
+}
+
+/* ---------- Landing motion ---------- */
+/* The headline paints left to right, as a terminal screen fills in. */
+.term-paint {
+  animation: term-paint 0.01s linear both;
+  animation-delay: calc(0.25s + var(--c, 0) * 28ms);
+}
+@keyframes term-paint {
+  from {
+    opacity: 0;
+  }
+}
+/* The replay starts once the headline is on screen. */
+.term-replay {
+  animation-delay: calc(1.45s + var(--i, 0) * 0.2s);
+}
+/* Steps boot as they scroll into view: [ .. ] becomes [ OK ]. Without JS (or with reduced motion)
+   they show [ OK ] straight away. */
+.boot-tag::before {
+  content: "[ OK ]";
+  color: var(--ok);
+}
+[data-boot][data-armed="1"]:not([data-on="1"]) .boot-tag::before {
+  content: "[ .. ]";
+  color: var(--fg-faint);
+}
+[data-boot][data-armed="1"] .boot-row {
+  transition: opacity 0.3s var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 110ms);
+}
+[data-boot][data-armed="1"]:not([data-on="1"]) .boot-row {
+  opacity: 0.35;
+}
+[data-boot][data-on="1"] .boot-tag::before {
+  animation: boot-tag 0.01s steps(1) both;
+  animation-delay: calc(0.2s + var(--i, 0) * 110ms);
+}
+@keyframes boot-tag {
+  from {
+    content: "[ .. ]";
+    color: var(--fg-faint);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .term-paint,
+  .term-replay,
+  [data-boot][data-on="1"] .boot-tag::before {
+    animation: none;
+  }
+}
+
+/* ---------- Workspace start-up ---------- */
+/* The screen powers on like a CRT: a bright line that opens to full height. */
+.boot-screen > * {
+  animation: crt-on 0.62s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  transform-origin: center;
+}
+@keyframes crt-on {
+  0% {
+    transform: scale(0.2, 0.003);
+    filter: brightness(6);
+    opacity: 0.2;
+  }
+  35% {
+    transform: scale(1, 0.006);
+    filter: brightness(4);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1, 1.04);
+    filter: brightness(1.4);
+  }
+  100% {
+    transform: scale(1, 1);
+    filter: none;
+  }
+}
+.boot-line {
+  animation: term-line-in 0.22s var(--ease-out) both;
+}
+.boot-wait {
+  animation: term-blink 0.8s steps(1) infinite;
+}
+.boot-leaving {
+  animation: boot-out 0.32s ease-in both;
+}
+@keyframes boot-out {
+  to {
+    opacity: 0;
+    filter: brightness(1.8);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-screen > *,
+  .boot-line,
+  .boot-wait,
+  .boot-leaving {
+    animation: none;
+  }
+}
+.boot-banner {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: min(15px, calc((100vw - 40px) / 30));
+  line-height: 1;
+}
