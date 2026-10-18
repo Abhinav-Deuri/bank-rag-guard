@@ -1,5 +1,5 @@
 """RAG answer pipeline: tier-filtered search -> masking -> language model -> masked answer -> audit log."""
-import hashlib, os, time, requests
+import hashlib, os, re, time, requests
 from collections import Counter
 try:
     from . import audit, masker
@@ -68,6 +68,12 @@ def retrieve(conn, question, tier, k=5):
                FROM chunks WHERE tier <= %s ORDER BY embedding <=> %s::vector LIMIT %s""",
             (vec, tier, vec, k)).fetchall()
 
+def reply_language(question):
+    """English or Arabic, by which script most letters of the question are in (Arabizi counts as English)."""
+    letters = re.findall(r"[A-Za-z\u0600-\u06FF]", question)
+    arabic = sum(1 for c in letters if "\u0600" <= c <= "\u06FF")
+    return "Arabic" if letters and arabic * 2 >= len(letters) else "English"
+
 def ask_model(question, context):
     """Send the masked question and masked context to the language model; return (text, model).
     Raises ServiceUnavailable if the model cannot be reached: we never return canned or copied text as an answer."""
@@ -75,10 +81,15 @@ def ask_model(question, context):
     key = os.environ.get("GROQ_API_KEY", "")
     if not key:
         raise ServiceUnavailable("GROQ_API_KEY is not set")
+    # Passages are often in the other language (the complaint notes are half Arabic), and without this the model
+    # sometimes answers an English question in Arabic. State the reply language outright.
+    lang = reply_language(question)
+    system = (f"{SYSTEM_PROMPT} The question is in {lang}. Write the whole answer in {lang}, "
+              "even when the context passages are in another language.")
     try:
         data = _post(GROQ_URL, {"Authorization": f"Bearer {key}"},
                      {"model": model, "temperature": 0.2, "max_tokens": 1500,
-                      "messages": [{"role": "system", "content": SYSTEM_PROMPT},
+                      "messages": [{"role": "system", "content": system},
                                    {"role": "user", "content": f"Question: {question}\n\nContext:\n{context}"}]})
         return (data["choices"][0]["message"].get("content") or "").strip(), model
     except Exception as e:
